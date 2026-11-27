@@ -1,0 +1,2561 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>WebClient Studio — Atelier d'Agence Web Autonome (Québec)</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Plus Jakarta Sans', 'sans-serif'] },
+          colors: {
+            slate: { 850: '#111a2e', 950: '#060a13' }
+          }
+        }
+      }
+    };
+  </script>
+  <style>
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #070c17; }
+    ::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 9999px; }
+    ::-webkit-scrollbar-thumb:hover { background: #334155; }
+    .panel-glass {
+      background: rgba(17, 26, 46, 0.78);
+      backdrop-filter: blur(12px);
+      border: 1px solid rgba(148, 163, 184, 0.14);
+    }
+    .field-dark {
+      background: #070c17;
+      border: 1px solid #1e293b;
+      transition: border-color 0.15s ease, box-shadow 0.15s ease;
+    }
+    .field-dark:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.18);
+    }
+  </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans antialiased selection:bg-indigo-500 selection:text-white overflow-x-hidden">
+
+  <!-- Zone de notifications -->
+  <div id="toast-root" class="fixed bottom-5 right-5 z-50 flex flex-col gap-2.5 max-w-sm pointer-events-none"></div>
+
+  <div class="flex flex-col lg:flex-row min-h-screen">
+
+    <!-- =================================================================== -->
+    <!-- BARRE LATÉRALE GAUCHE : BIBLIOTHÈQUE PERSISTANTE & OBJECTIF CAD     -->
+    <!-- =================================================================== -->
+    <aside id="sidebar" class="fixed lg:static inset-y-0 left-0 z-40 w-80 bg-slate-900/95 border-r border-slate-800 flex flex-col transform -translate-x-full lg:translate-x-0 transition-transform duration-200 ease-out shrink-0">
+      
+      <!-- Marque -->
+      <div class="p-4 sm:p-5 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 via-blue-500 to-emerald-500 flex items-center justify-center font-extrabold text-white shadow-lg shadow-indigo-500/20">
+            WS
+          </div>
+          <div>
+            <h1 class="font-extrabold text-base text-white tracking-tight">WebClient Studio</h1>
+            <p class="text-[11px] text-slate-400">Travail autonome • Québec (CAD)</p>
+          </div>
+        </div>
+        <button type="button" onclick="toggleMobileSidebar()" class="lg:hidden p-2 rounded-lg bg-slate-800 text-slate-300 hover:text-white">✕</button>
+      </div>
+
+      <!-- Bouton rapide d'ajout de prospect -->
+      <div class="p-4 pb-2 space-y-2">
+        <button type="button" onclick="openNewProspectModal()" class="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-indigo-600 to-blue-600 hover:from-indigo-500 hover:to-blue-500 text-white font-extrabold text-xs sm:text-sm shadow-lg shadow-indigo-600/25 flex items-center justify-center gap-2 transition active:scale-[0.99]">
+          <span>+ Nouveau prospect</span>
+        </button>
+        <button type="button" onclick="loadSampleProspect()" class="w-full py-2 px-3 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-700/80 text-emerald-300 font-bold text-xs flex items-center justify-center gap-1.5 transition">
+          <span>⚡ Charger un prospect exemple</span>
+        </button>
+      </div>
+
+      <!-- Suivi des revenus mensuels en CAD -->
+      <div class="px-4 py-2">
+        <div class="p-3.5 rounded-2xl bg-slate-850 border border-slate-800">
+          <div class="flex items-center justify-between text-xs mb-1.5">
+            <span class="text-slate-400 font-semibold">Revenus signés / livrés</span>
+            <span id="sidebar-revenue-label" class="font-extrabold text-emerald-400">0 $ / 3 500 $</span>
+          </div>
+          <div class="w-full h-2 bg-slate-950 rounded-full overflow-hidden border border-slate-800">
+            <div id="sidebar-revenue-bar" class="h-full bg-gradient-to-r from-emerald-500 to-teal-400 transition-all duration-300" style="width: 0%"></div>
+          </div>
+          <div class="mt-2 pt-2 border-t border-slate-800/80 flex items-center justify-between text-[11px] text-slate-400">
+            <span id="sidebar-pipeline-label">Potentiel : 0 $</span>
+            <span id="sidebar-mrr-label" class="text-indigo-300 font-semibold">+0 $/mois</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Recherche & Filtre dans la bibliothèque -->
+      <div class="px-4 pt-2 pb-2 space-y-2">
+        <div class="flex items-center justify-between">
+          <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Bibliothèque de projets</span>
+          <span id="sidebar-project-count" class="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-slate-800 text-slate-200">0</span>
+        </div>
+        <input id="library-search-input" type="text" oninput="renderLibraryList()" placeholder="Rechercher un nom ou une ville..." class="w-full px-3 py-2 rounded-xl field-dark text-xs text-white" />
+        <select id="library-sector-filter" onchange="renderLibraryList()" class="w-full px-3 py-1.5 rounded-xl field-dark text-xs text-slate-200">
+          <option value="ALL">Tous les secteurs</option>
+          <option value="Automobile">Automobile</option>
+          <option value="Soins / Clinique">Soins / Clinique</option>
+          <option value="Commerce">Commerce</option>
+          <option value="PME générale">PME générale</option>
+        </select>
+      </div>
+
+      <!-- Liste des projets sauvegardés -->
+      <div id="library-list" class="flex-1 overflow-y-auto px-3 space-y-2 pb-4"></div>
+
+      <!-- Réglages Studio & Clé API optionnelle -->
+      <div class="p-3.5 border-t border-slate-800 bg-slate-900">
+        <button type="button" onclick="openSettingsModal()" class="w-full py-2.5 px-3.5 rounded-xl bg-slate-850 hover:bg-slate-800 border border-slate-700/70 text-xs font-bold text-slate-200 flex items-center justify-between transition">
+          <span id="sidebar-studio-name" class="truncate">⚙ Profil, Objectif & Clé Gemini</span>
+          <span class="text-[10px] px-2 py-0.5 rounded bg-indigo-500/15 text-indigo-300 shrink-0">Réglages</span>
+        </button>
+      </div>
+    </aside>
+
+    <!-- Fond mobile sidebar -->
+    <div id="sidebar-overlay" onclick="toggleMobileSidebar()" class="fixed inset-0 bg-black/70 z-30 hidden lg:hidden"></div>
+
+    <!-- =================================================================== -->
+    <!-- CONTENU PRINCIPAL                                                   -->
+    <!-- =================================================================== -->
+    <div class="flex-1 flex flex-col min-w-0">
+
+      <!-- Barre supérieure toujours accessible avec '+ Nouveau prospect' -->
+      <header class="sticky top-0 z-20 bg-slate-900/90 backdrop-blur border-b border-slate-800 px-4 sm:px-6 py-3">
+        <div class="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-3">
+          <div class="flex items-center gap-2.5 min-w-0">
+            <button type="button" onclick="toggleMobileSidebar()" class="lg:hidden p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold text-xs">
+              ☰ Dossiers
+            </button>
+            <div class="min-w-0">
+              <div class="flex items-center gap-2">
+                <input id="header-project-title" type="text" onchange="renameCurrentProject(this.value)" class="bg-transparent text-base sm:text-lg font-extrabold text-white focus:outline-none focus:ring-2 focus:ring-indigo-500/50 rounded-lg px-1.5 -ml-1.5 truncate max-w-xs sm:max-w-md" />
+              </div>
+              <p id="header-project-subtitle" class="text-[11px] sm:text-xs text-slate-400 truncate">
+                Automobile • Saint-Bruno-de-Montarville, QC
+              </p>
+            </div>
+          </div>
+
+          <div class="flex flex-wrap items-center gap-2">
+            <select id="header-project-status" onchange="changeCurrentProjectStatus(this.value)" class="px-3 py-2 rounded-xl field-dark text-xs font-bold text-slate-200">
+              <option value="À prospecter">À prospecter</option>
+              <option value="Maquettes prêtes">Maquettes prêtes</option>
+              <option value="Contacté">Contacté</option>
+              <option value="Devis envoyé">Devis envoyé</option>
+              <option value="Signé & Livré">Signé & Livré</option>
+            </select>
+
+            <button type="button" onclick="duplicateCurrentProject()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-slate-200 transition">
+              Dupliquer
+            </button>
+
+            <button type="button" onclick="openNewProspectModal()" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold shadow-md shadow-indigo-600/20 transition">
+              + Nouveau prospect
+            </button>
+          </div>
+        </div>
+
+        <!-- Navigation à 4 onglets -->
+        <nav class="max-w-7xl mx-auto mt-3 grid grid-cols-2 md:grid-cols-4 gap-2">
+          <button type="button" id="nav-tab-1" onclick="selectTab(1)" class="py-2.5 px-3 rounded-xl text-xs font-extrabold border transition text-center">
+            1. Prospection & Fiche
+          </button>
+          <button type="button" id="nav-tab-2" onclick="selectTab(2)" class="py-2.5 px-3 rounded-xl text-xs font-extrabold border transition text-center">
+            2. Studio 3 Sites & Devis
+          </button>
+          <button type="button" id="nav-tab-3" onclick="selectTab(3)" class="py-2.5 px-3 rounded-xl text-xs font-extrabold border transition text-center">
+            3. Appel & Courriel Gmail
+          </button>
+          <button type="button" id="nav-tab-4" onclick="selectTab(4)" class="py-2.5 px-3 rounded-xl text-xs font-extrabold border transition text-center">
+            4. Livraison & Publication
+          </button>
+        </nav>
+      </header>
+
+      <!-- Zone de travail active -->
+      <main class="flex-1 p-4 sm:p-6 lg:p-8">
+        <div class="max-w-7xl mx-auto">
+
+          <!-- =============================================================== -->
+          <!-- ONGLET 1 : PROSPECTION, RECHERCHE CIBLÉE & AJOUT RAPIDE         -->
+          <!-- =============================================================== -->
+          <section id="view-tab-1" class="space-y-6">
+
+            <!-- Bloc 1 : Recherche de prospects sur Internet + Ajout express -->
+            <div class="panel-glass rounded-2xl p-5 sm:p-6">
+              <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+                <div>
+                  <h2 class="text-base sm:text-lg font-extrabold text-white">Trouver de nouveaux prospects locaux</h2>
+                  <p class="text-xs text-slate-400 mt-0.5">
+                    Lancez une recherche ciblée (Google Maps, recherche web sans site, Pages Facebook) ou ajoutez directement un prospect trouvé.
+                  </p>
+                </div>
+                <div class="flex flex-wrap gap-2">
+                  <button type="button" onclick="loadSampleProspect()" class="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-emerald-300 transition">
+                    + Charger un exemple
+                  </button>
+                  <button type="button" onclick="openNewProspectModal()" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold transition">
+                    + Nouveau prospect
+                  </button>
+                </div>
+              </div>
+
+              <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">Secteur d'activité</label>
+                  <select id="search-sector" onchange="refreshSearchLinks()" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white">
+                    <option value="Automobile">Automobile</option>
+                    <option value="Soins / Clinique">Soins / Clinique</option>
+                    <option value="Commerce">Commerce</option>
+                    <option value="PME générale">PME générale</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">Ville ou MRC (Québec)</label>
+                  <input id="search-city" type="text" oninput="refreshSearchLinks()" placeholder="Ex: Saint-Bruno-de-Montarville, QC" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+                </div>
+                <div>
+                  <label class="block text-xs font-bold text-slate-300 mb-1">Mot-clé précis (optionnel)</label>
+                  <input id="search-keyword" type="text" oninput="refreshSearchLinks()" placeholder="Ex: pneus, ostéopathie, boulangerie..." class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+                </div>
+              </div>
+
+              <!-- Liens de recherche ciblée -->
+              <div id="search-links-grid" class="grid grid-cols-1 sm:grid-cols-3 gap-3 mt-5 pt-5 border-t border-slate-800"></div>
+
+              <!-- Création express d'une fiche à partir d'un nom repéré -->
+              <div class="mt-5 pt-5 border-t border-slate-800 flex flex-col sm:flex-row items-stretch sm:items-end gap-3">
+                <div class="flex-1">
+                  <label class="block text-xs font-bold text-slate-300 mb-1">Créer immédiatement un nouveau dossier pour un nom trouvé</label>
+                  <input id="quick-add-name" type="text" placeholder="Ex: Garage St-Bruno Auto ou Clinique Santé Plus" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+                </div>
+                <button type="button" onclick="quickCreateProspectFromSearch()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-extrabold shrink-0 shadow-lg shadow-emerald-600/20 transition">
+                  Ajouter et ouvrir la fiche
+                </button>
+              </div>
+            </div>
+
+            <!-- Bloc 2 : Fiche détaillée du prospect actif -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <div class="lg:col-span-2 panel-glass rounded-2xl p-5 sm:p-6">
+                <div class="flex items-center justify-between mb-4">
+                  <h3 class="text-base font-extrabold text-white">Fiche du prospect sélectionné</h3>
+                  <span class="text-[11px] font-bold text-emerald-400">Sauvegarde automatique</span>
+                </div>
+
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">Nom de l'entreprise *</label>
+                    <input id="prospect-name" type="text" oninput="saveProspectForm()" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">Secteur</label>
+                    <select id="prospect-sector" onchange="saveProspectForm()" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white">
+                      <option value="Automobile">Automobile</option>
+                      <option value="Soins / Clinique">Soins / Clinique</option>
+                      <option value="Commerce">Commerce</option>
+                      <option value="PME générale">PME générale</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">Ville</label>
+                    <input id="prospect-city" type="text" oninput="saveProspectForm()" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">Téléphone</label>
+                    <input id="prospect-phone" type="text" oninput="saveProspectForm()" placeholder="Ex: 450-555-0192" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">Courriel</label>
+                    <input id="prospect-email" type="email" oninput="saveProspectForm()" placeholder="Ex: contact@entreprise.ca" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-bold text-slate-300 mb-1">Services / Produits / Soins phares</label>
+                    <input id="prospect-services" type="text" oninput="saveProspectForm()" placeholder="Séparés par des virgules" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+                  </div>
+                  <div class="sm:col-span-2">
+                    <label class="block text-xs font-bold text-slate-300 mb-1">Notes / Besoin constaté</label>
+                    <textarea id="prospect-notes" rows="3" oninput="saveProspectForm()" placeholder="Ex: Pas de site web, page Facebook peu active, veut simplifier la prise de rendez-vous..." class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white"></textarea>
+                  </div>
+                </div>
+
+                <div class="mt-5 pt-4 border-t border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                  <button type="button" onclick="generatePitchPoints()" class="px-4 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs font-bold text-indigo-300 transition">
+                    Actualiser les arguments d'approche
+                  </button>
+                  <button type="button" onclick="generateAllThreeSitesAndOpenStudio()" class="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white text-xs sm:text-sm font-extrabold shadow-lg transition">
+                    Générer les 3 sites interactifs →
+                  </button>
+                </div>
+              </div>
+
+              <!-- Colonne droite : Arguments d'approche -->
+              <div class="panel-glass rounded-2xl p-5 sm:p-6 flex flex-col justify-between">
+                <div>
+                  <span class="inline-block px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-300 text-[11px] font-extrabold mb-3">
+                    Angle d'attaque local
+                  </span>
+                  <h3 class="text-base font-extrabold text-white mb-3">Pourquoi ce prospect a besoin d'un site</h3>
+                  <div id="pitch-points-box" class="space-y-3 text-xs sm:text-sm text-slate-300 leading-relaxed"></div>
+                </div>
+                <p class="text-[11px] text-slate-400 mt-5 pt-3 border-t border-slate-800">
+                  Astuce : montrez toujours une maquette fonctionnelle dès le premier contact.
+                </p>
+              </div>
+            </div>
+          </section>
+
+          <!-- =============================================================== -->
+          <!-- ONGLET 2 : STUDIO 3 SITES WEB INTERACTIFS & DEVIS CAD           -->
+          <!-- =============================================================== -->
+          <section id="view-tab-2" class="hidden space-y-6">
+
+            <!-- Barre d'action Studio -->
+            <div class="panel-glass rounded-2xl p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <h2 class="text-base sm:text-lg font-extrabold text-white">
+                  3 concepts de sites web interactifs pour <span id="studio-client-label" class="text-indigo-400">ce prospect</span>
+                </h2>
+                <p id="studio-engine-status" class="text-xs text-slate-400 mt-1">
+                  Chaque site tourne dans un iframe isolé avec boutons, onglets, FAQ et formulaires réellement fonctionnels.
+                </p>
+              </div>
+              <div class="flex flex-wrap gap-2 shrink-0">
+                <button type="button" id="btn-generate-sites" onclick="generateThreeInteractiveSites()" class="px-5 py-3 rounded-xl bg-gradient-to-r from-indigo-600 via-blue-600 to-emerald-600 hover:from-indigo-500 hover:to-emerald-500 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-indigo-600/20 transition">
+                  Régénérer les 3 sites web
+                </button>
+              </div>
+            </div>
+
+            <!-- Cartes des 3 concepts -->
+            <div id="three-concepts-grid" class="grid grid-cols-1 md:grid-cols-3 gap-4"></div>
+
+            <!-- Aperçu interactif dans iframe srcdoc -->
+            <div class="panel-glass rounded-2xl overflow-hidden shadow-2xl">
+              <div class="bg-slate-900 px-4 sm:px-6 py-3.5 border-b border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                <div class="flex items-center gap-2.5 min-w-0">
+                  <span class="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0"></span>
+                  <span id="preview-bar-title" class="text-xs sm:text-sm font-extrabold text-white truncate">
+                    Aperçu interactif — Concept 2 : Croissance Pro (1 290 $ CAD)
+                  </span>
+                </div>
+
+                <div class="flex flex-wrap items-center gap-2">
+                  <button type="button" id="btn-view-desktop" onclick="setViewportMode('desktop')" class="px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold">
+                    Ordinateur
+                  </button>
+                  <button type="button" id="btn-view-mobile" onclick="setViewportMode('mobile')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold">
+                    Mobile
+                  </button>
+                  <button type="button" onclick="openDemoModal()" class="px-3.5 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold">
+                    Plein écran démo
+                  </button>
+                </div>
+              </div>
+
+              <div class="bg-slate-950 p-3 sm:p-5 flex justify-center">
+                <div id="preview-frame-container" class="w-full transition-all duration-200 rounded-xl overflow-hidden border border-slate-800 bg-white shadow-xl">
+                  <iframe id="site-preview-iframe" title="Aperçu interactif du site client" class="w-full h-[640px] border-0 block" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+                </div>
+              </div>
+            </div>
+
+            <!-- Configurateur d'options & calcul du devis en CAD -->
+            <div class="panel-glass rounded-2xl p-5 sm:p-6">
+              <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
+                <div class="lg:col-span-2">
+                  <h3 class="text-base font-extrabold text-white mb-1">Options & Calculateur de Devis ($ CAD)</h3>
+                  <p class="text-xs text-slate-400 mb-4">Cochez les options ajoutées au contrat pour mettre à jour le montant total, l'acompte et vos scripts de vente.</p>
+                  <div id="quote-options-list" class="grid grid-cols-1 sm:grid-cols-2 gap-3"></div>
+                </div>
+
+                <div class="p-5 rounded-2xl bg-slate-900 border border-slate-800 space-y-3">
+                  <span class="text-[11px] font-bold uppercase tracking-wider text-slate-400">Devis estimé</span>
+                  <div class="flex items-baseline gap-2">
+                    <span id="quote-total-display" class="text-3xl font-extrabold text-white">1 290 $</span>
+                    <span class="text-xs font-bold text-slate-400">CAD</span>
+                  </div>
+                  <div id="quote-monthly-display" class="inline-block px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-300 text-xs font-bold">
+                    + 0 $ / mois
+                  </div>
+                  <p id="quote-summary-detail" class="text-xs text-slate-400 leading-relaxed pt-1"></p>
+                  <button type="button" onclick="selectTab(3)" class="w-full mt-2 py-3 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold transition">
+                    Aller à l'appel & courriel Gmail →
+                  </button>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- =============================================================== -->
+          <!-- ONGLET 3 : APPEL TÉLÉPHONIQUE & COURRIEL GMAIL                   -->
+          <!-- =============================================================== -->
+          <section id="view-tab-3" class="hidden space-y-6">
+
+            <div class="panel-glass rounded-2xl p-5 sm:p-6 flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <span id="outreach-badge" class="inline-block px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-300 text-xs font-extrabold mb-1.5">
+                  Concept 2 • Croissance Pro (1 290 $ CAD)
+                </span>
+                <h2 id="outreach-company-title" class="text-lg sm:text-xl font-extrabold text-white"></h2>
+                <p id="outreach-company-coords" class="text-xs text-slate-400 mt-0.5"></p>
+              </div>
+              <div class="flex flex-wrap gap-2">
+                <a id="outreach-tel-btn" href="tel:" class="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold transition">
+                  Appeler le prospect
+                </a>
+                <button type="button" onclick="rebuildOutreachScripts(true)" class="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold transition">
+                  Régénérer script & courriel
+                </button>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              <!-- Script d'appel -->
+              <div class="panel-glass rounded-2xl p-5 sm:p-6 space-y-3">
+                <div class="flex items-center justify-between">
+                  <h3 class="text-base font-extrabold text-white">Script d'appel & réponses aux objections</h3>
+                  <button type="button" onclick="copyElementValue('outreach-call-script', 'Script d’appel copié !')" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-200">
+                    Copier le script
+                  </button>
+                </div>
+                <textarea id="outreach-call-script" rows="16" oninput="saveOutreachEdits()" class="w-full p-4 rounded-xl field-dark text-xs sm:text-sm text-slate-200 leading-relaxed"></textarea>
+              </div>
+
+              <!-- Courriel Gmail -->
+              <div class="panel-glass rounded-2xl p-5 sm:p-6 space-y-3">
+                <div class="flex flex-wrap items-center justify-between gap-2">
+                  <h3 class="text-base font-extrabold text-white">Courriel de présentation</h3>
+                  <div class="flex flex-wrap gap-2">
+                    <button type="button" onclick="setFollowUpEmailDraft()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-xs font-bold text-amber-300">
+                      Relance J+3
+                    </button>
+                    <button type="button" onclick="launchGmailDraft()" class="px-3.5 py-1.5 rounded-lg bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold">
+                      Ouvrir dans Gmail
+                    </button>
+                  </div>
+                </div>
+
+                <div>
+                  <label class="block text-xs font-bold text-slate-400 mb-1">Objet</label>
+                  <input id="outreach-email-subject" type="text" oninput="saveOutreachEdits()" class="w-full px-3.5 py-2 rounded-xl field-dark text-sm text-white" />
+                </div>
+
+                <div>
+                  <div class="flex items-center justify-between mb-1">
+                    <label class="block text-xs font-bold text-slate-400">Message</label>
+                    <button type="button" onclick="copyFullEmail()" class="text-xs font-bold text-indigo-400 hover:text-indigo-300">
+                      Copier objet + message
+                    </button>
+                  </div>
+                  <textarea id="outreach-email-body" rows="12" oninput="saveOutreachEdits()" class="w-full p-4 rounded-xl field-dark text-xs sm:text-sm text-slate-200 leading-relaxed"></textarea>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <!-- =============================================================== -->
+          <!-- ONGLET 4 : LIVRAISON, PUBLICATION & FACTURATION                 -->
+          <!-- =============================================================== -->
+          <section id="view-tab-4" class="hidden space-y-6">
+
+            <div class="panel-glass rounded-2xl p-5 sm:p-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <h2 class="text-base sm:text-lg font-extrabold text-white">Livraison du site, mise en ligne & facturation</h2>
+                <p class="text-xs text-slate-400 mt-0.5">
+                  Téléchargez le fichier HTML du concept choisi, publiez-le en ligne et envoyez le récapitulatif au client.
+                </p>
+              </div>
+              <button type="button" onclick="markAsSignedAndDelivered()" class="px-5 py-3 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs sm:text-sm font-extrabold shadow-lg shadow-emerald-600/20 transition shrink-0">
+                ✓ Marquer « Signé & Livré »
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+              <!-- Étape 1 : Fichier HTML -->
+              <div class="panel-glass rounded-2xl p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                <div>
+                  <span class="inline-block px-2.5 py-1 rounded-lg bg-indigo-500/15 text-indigo-300 text-xs font-extrabold mb-2">Étape 1</span>
+                  <h3 class="text-base font-extrabold text-white">Fichier du site retenu</h3>
+                  <p id="delivery-concept-info" class="text-xs text-slate-400 mt-1.5 leading-relaxed"></p>
+                </div>
+                <div class="space-y-2">
+                  <button type="button" onclick="downloadSelectedSiteHTML()" class="w-full py-3 px-4 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold transition">
+                    Télécharger index.html
+                  </button>
+                  <button type="button" onclick="copySelectedSiteHTML()" class="w-full py-2.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold transition">
+                    Copier le code HTML
+                  </button>
+                </div>
+              </div>
+
+              <!-- Étape 2 : Publication rapide -->
+              <div class="panel-glass rounded-2xl p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                <div>
+                  <span class="inline-block px-2.5 py-1 rounded-lg bg-cyan-500/15 text-cyan-300 text-xs font-extrabold mb-2">Étape 2</span>
+                  <h3 class="text-base font-extrabold text-white">Publier en ligne (Démo ou .CA)</h3>
+                  <ol class="text-xs text-slate-300 space-y-2 list-decimal pl-4 mt-2 leading-relaxed">
+                    <li>Téléchargez <code class="text-white">index.html</code> à l'étape 1.</li>
+                    <li>Glissez le fichier sur <strong>Netlify Drop</strong> pour obtenir un lien de démo instantané.</li>
+                    <li>Pour la version finale, associez le domaine <code class="text-cyan-300">.ca</code> / <code class="text-cyan-300">.com</code> de votre client avec SSL actif.</li>
+                  </ol>
+                </div>
+                <div class="space-y-2">
+                  <a href="https://app.netlify.com/drop" target="_blank" rel="noopener noreferrer" class="block w-full text-center py-3 px-4 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-extrabold transition">
+                    Ouvrir Netlify Drop
+                  </a>
+                  <a href="https://www.namecheap.com" target="_blank" rel="noopener noreferrer" class="block w-full text-center py-2 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold transition">
+                    Gérer un nom de domaine (.ca / .com)
+                  </a>
+                </div>
+              </div>
+
+              <!-- Étape 3 : Checklist mise en ligne -->
+              <div class="panel-glass rounded-2xl p-5 sm:p-6 flex flex-col justify-between space-y-4">
+                <div>
+                  <span class="inline-block px-2.5 py-1 rounded-lg bg-emerald-500/15 text-emerald-300 text-xs font-extrabold mb-2">Étape 3</span>
+                  <h3 class="text-base font-extrabold text-white mb-3">Checklist avant remise</h3>
+                  <div id="delivery-checklist" class="space-y-2"></div>
+                </div>
+                <p class="text-[11px] text-slate-400">
+                  Vérifiez que les formulaires affichent bien la confirmation et que les coordonnées téléphoniques sont exactes.
+                </p>
+              </div>
+            </div>
+
+            <!-- Récapitulatif de facturation & message de livraison -->
+            <div class="panel-glass rounded-2xl p-5 sm:p-6 space-y-3">
+              <div class="flex flex-wrap items-center justify-between gap-2">
+                <h3 class="text-base font-extrabold text-white">Récapitulatif de livraison & modalités (50 % / 50 %)</h3>
+                <div class="flex flex-wrap gap-2">
+                  <button type="button" onclick="refreshDeliverySummary(true)" class="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold">
+                    Actualiser le texte
+                  </button>
+                  <button type="button" onclick="copyElementValue('delivery-summary-text', 'Récapitulatif de livraison copié !')" class="px-3.5 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs font-bold">
+                    Copier le texte
+                  </button>
+                  <button type="button" onclick="sendDeliveryEmailGmail()" class="px-3.5 py-2 rounded-xl bg-rose-600 hover:bg-rose-500 text-white text-xs font-extrabold">
+                    Envoyer par Gmail
+                  </button>
+                </div>
+              </div>
+              <textarea id="delivery-summary-text" rows="12" oninput="saveDeliverySummaryEdit()" class="w-full p-4 rounded-xl field-dark text-xs sm:text-sm text-slate-200 leading-relaxed font-mono"></textarea>
+            </div>
+          </section>
+
+        </div>
+      </main>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODALE : AJOUT RAPIDE D'UN NOUVEAU PROSPECT                          -->
+  <!-- ===================================================================== -->
+  <div id="new-prospect-modal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-extrabold text-white">Ajouter un nouveau prospect</h3>
+        <button type="button" onclick="closeNewProspectModal()" class="text-slate-400 hover:text-white font-bold">✕</button>
+      </div>
+
+      <form id="modal-new-prospect-form" onsubmit="submitNewProspectModal(event)" class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Nom de l'entreprise *</label>
+          <input id="modal-p-name" type="text" required placeholder="Ex: Esthétique & Soins du Parc" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Secteur</label>
+            <select id="modal-p-sector" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white">
+              <option value="Automobile">Automobile</option>
+              <option value="Soins / Clinique">Soins / Clinique</option>
+              <option value="Commerce">Commerce</option>
+              <option value="PME générale">PME générale</option>
+            </select>
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Ville</label>
+            <input id="modal-p-city" type="text" value="Saint-Bruno-de-Montarville, QC" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Téléphone</label>
+            <input id="modal-p-phone" type="text" placeholder="Ex: 450-555-0140" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Courriel</label>
+            <input id="modal-p-email" type="email" placeholder="Ex: info@entreprise.ca" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+          </div>
+        </div>
+
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Notes / Besoin</label>
+          <textarea id="modal-p-notes" rows="3" placeholder="Ex: Aucun site web, veut mettre de l'avant ses forfaits et recevoir des demandes de rendez-vous." class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white"></textarea>
+        </div>
+
+        <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+          <button type="button" onclick="closeNewProspectModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300">
+            Annuler
+          </button>
+          <button type="submit" class="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-extrabold">
+            Ajouter à la bibliothèque
+          </button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODALE : PROFIL, OBJECTIF & CLÉ API GEMINI OPTIONNELLE              -->
+  <!-- ===================================================================== -->
+  <div id="settings-modal" class="fixed inset-0 z-50 bg-black/75 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-slate-900 border border-slate-700 rounded-2xl max-w-lg w-full p-6 shadow-2xl space-y-4">
+      <div class="flex items-center justify-between pb-3 border-b border-slate-800">
+        <h3 class="text-base font-extrabold text-white">Profil autonome, Objectif & Clé Gemini</h3>
+        <button type="button" onclick="closeSettingsModal()" class="text-slate-400 hover:text-white font-bold">✕</button>
+      </div>
+
+      <div class="space-y-3.5">
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Votre nom ou nom de travailleur autonome</label>
+          <input id="set-studio-name" type="text" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+        </div>
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Votre téléphone</label>
+            <input id="set-studio-phone" type="text" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+          </div>
+          <div>
+            <label class="block text-xs font-bold text-slate-300 mb-1">Votre courriel</label>
+            <input id="set-studio-email" type="email" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+          </div>
+        </div>
+        <div>
+          <label class="block text-xs font-bold text-slate-300 mb-1">Objectif mensuel ($ CAD)</label>
+          <input id="set-monthly-goal" type="number" step="100" class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+        </div>
+        <div class="pt-2 border-t border-slate-800">
+          <label class="block text-xs font-bold text-slate-300 mb-1">Clé API Gemini (optionnelle — repli local instantané si vide)</label>
+          <input id="set-gemini-key" type="password" placeholder="Collez une clé Gemini si vous souhaitez l'utiliser..." class="w-full px-3.5 py-2.5 rounded-xl field-dark text-sm text-white" />
+          <p class="text-[11px] text-slate-400 mt-1">
+            Sans clé ou en cas d'indisponibilité réseau, le moteur interactif intégré génère immédiatement 3 sites complets et fonctionnels.
+          </p>
+        </div>
+      </div>
+
+      <div class="pt-3 border-t border-slate-800 flex justify-end gap-2">
+        <button type="button" onclick="closeSettingsModal()" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-slate-300">
+          Fermer
+        </button>
+        <button type="button" onclick="saveSettingsModal()" class="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-extrabold">
+          Enregistrer
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODALE : DÉMO PLEIN ÉCRAN                                            -->
+  <!-- ===================================================================== -->
+  <div id="demo-modal" class="fixed inset-0 z-50 bg-slate-950 hidden flex flex-col">
+    <div class="bg-slate-900 px-4 sm:px-6 py-3 border-b border-slate-800 flex items-center justify-between gap-3">
+      <span id="demo-modal-title" class="text-xs sm:text-sm font-extrabold text-white truncate">Démo interactive client</span>
+      <div class="flex items-center gap-2 shrink-0">
+        <button type="button" onclick="downloadSelectedSiteHTML()" class="px-3 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold">
+          Télécharger HTML
+        </button>
+        <button type="button" onclick="closeDemoModal()" class="px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold">
+          Fermer ✕
+        </button>
+      </div>
+    </div>
+    <iframe id="demo-modal-iframe" title="Démo plein écran" class="flex-1 w-full bg-white border-0" sandbox="allow-scripts allow-same-origin allow-forms"></iframe>
+  </div>
+
+  <script>
+    // =========================================================================
+    // CONSTANTES, TARIFS RÉALISTES CAD & OPTIONS
+    // =========================================================================
+    const STORAGE_KEY = 'webclient_studio_qc_v3';
+
+    const CONCEPTS = [
+      {
+        index: 0,
+        name: 'Vitrine Essentielle',
+        price: 690,
+        badge: 'Concept 1 • Rapide & direct',
+        summary: 'Mise en page claire sur mobile et ordinateur, onglets de services, FAQ interactive et formulaire de demande rapide.'
+      },
+      {
+        index: 1,
+        name: 'Croissance Pro',
+        price: 1290,
+        badge: 'Concept 2 • Recommandé',
+        summary: 'Identité visuelle soignée adaptée au secteur, sélection interactive de services/forfaits, FAQ et demande de rendez-vous.'
+      },
+      {
+        index: 2,
+        name: 'Solution Sur-Mesure',
+        price: 1950,
+        badge: 'Concept 3 • Complet & conversion',
+        summary: 'Parcours complet orienté conversion avec onglets métiers dédiés, sélecteur d’offre/forfait et confirmation détaillée.'
+      }
+    ];
+
+    const QUOTE_OPTIONS = [
+      { id: 'seoLocal', label: 'Référencement local & fiche Google Maps', price: 250, monthly: false },
+      { id: 'copywriting', label: 'Rédaction & structuration des textes', price: 180, monthly: false },
+      { id: 'domainSetup', label: 'Mise en place domaine (.ca/.com) & SSL', price: 120, monthly: false },
+      { id: 'bookingFlow', label: 'Parcours rendez-vous / soumission avancé', price: 220, monthly: false },
+      { id: 'carePlan', label: 'Maintenance, sauvegardes & ajustements', price: 49, monthly: true }
+    ];
+
+    const DELIVERY_CHECKLIST_ITEMS = [
+      { id: 'htmlReady', label: 'Fichier index.html vérifié sur ordinateur et mobile' },
+      { id: 'domainLinked', label: 'Nom de domaine (.ca / .com) configuré avec HTTPS' },
+      { id: 'formsChecked', label: 'Formulaires et coordonnées téléphoniques validés' },
+      { id: 'clientHandedOver', label: 'Lien en ligne et récapitulatif remis au client' }
+    ];
+
+    // Banque d'exemples variés pour tester tous les secteurs facilement
+    const SAMPLE_PROSPECTS = [
+      {
+        name: 'Garage Mécanique Montarville',
+        sector: 'Automobile',
+        city: 'Saint-Bruno-de-Montarville, QC',
+        phone: '450-555-0194',
+        email: 'service@garagemontarville.ca',
+        services: 'Entretien mécanique, Changement de pneus, Freins et suspension, Essai routier & inspection',
+        notes: 'Aucun site web officiel. Perd des demandes d’entretien et d’essais routiers faute de prise de rendez-vous claire.'
+      },
+      {
+        name: 'Clinique Santé & Mouvement Rive-Sud',
+        sector: 'Soins / Clinique',
+        city: 'Boucherville, QC',
+        phone: '450-555-0278',
+        email: 'accueil@santemouvement.ca',
+        services: 'Physiothérapie, Massothérapie thérapeutique, Ostéopathie, Reçus d’assurances',
+        notes: 'Ancien site peu lisible sur mobile. Les patients veulent vérifier les soins offerts, les reçus et demander un rendez-vous facilement.'
+      },
+      {
+        name: 'Boulangerie & Marché du Verger',
+        sector: 'Commerce',
+        city: 'Saint-Hyacinthe, QC',
+        phone: '450-555-0319',
+        email: 'bonjour@marcheduverger.ca',
+        services: 'Pains au levain, Pâtisseries maison, Paniers gourmands, Commandes locales',
+        notes: 'Présent seulement sur les réseaux sociaux. Souhaite présenter ses produits phares et recevoir des réservations de commandes.'
+      },
+      {
+        name: 'Services Conseils & Gestion Richelieu',
+        sector: 'PME générale',
+        city: 'Beloeil, QC',
+        phone: '450-555-0452',
+        email: 'info@gestionrichelieu.ca',
+        services: 'Accompagnement administratif, Tenue de livres PME, Optimisation des processus, Soumissions sur mesure',
+        notes: 'Entreprise établie sans site web. Besoin d’une vitrine crédible pour transformer le bouche-à-oreille en demandes qualifiées.'
+      }
+    ];
+
+    // =========================================================================
+    // ÉTAT GLOBAL DE L'APPLICATION
+    // =========================================================================
+    let appState = {
+      profile: {
+        studioName: 'Atelier Web Autonome QC',
+        phone: '450-555-0180',
+        email: 'bonjour@atelierwebqc.ca',
+        monthlyGoal: 3500,
+        geminiApiKey: ''
+      },
+      activeProjectId: '',
+      activeTab: 1,
+      viewportMode: 'desktop',
+      sampleCursor: 0,
+      projects: []
+    };
+
+    // =========================================================================
+    // GÉNÉRATEUR DE SITES WEB 100 % FONCTIONNELS PAR SECTEUR (DANS IFRAME)
+    // =========================================================================
+    function buildInteractiveWebsiteHTML(prospect, conceptIndex) {
+      const name = prospect.name || 'Entreprise Locale';
+      const sector = prospect.sector || 'PME générale';
+      const city = prospect.city || 'Québec';
+      const cityShort = city.split(',')[0].trim();
+      const phone = prospect.phone || '450-555-0190';
+      const email = prospect.email || 'contact@entreprise.ca';
+      const notes = prospect.notes || '';
+      const concept = CONCEPTS[conceptIndex] || CONCEPTS[0];
+
+      const rawServices = (prospect.services || '')
+        .split(',')
+        .map(s => s.trim())
+        .filter(Boolean);
+
+      // Configuration riche par secteur
+      let sectorConfig = {
+        badge: 'Entreprise locale • Service fiable',
+        heroTitle: `${name} : votre partenaire fiable à ${cityShort}`,
+        heroSubtitle: `Des prestations claires, une approche humaine et une réponse rapide pour vos projets à ${city}.`,
+        ctaLabel: 'Demander une soumission',
+        tab1Label: 'Prestations',
+        tab2Label: 'Notre méthode',
+        tab3Label: 'Engagements',
+        tab1Items: rawServices.length
+          ? rawServices.map((srv, idx) => ({
+              id: `srv-${idx}`,
+              title: srv,
+              meta: idx === 0 ? 'Populaire' : 'Sur mesure',
+              desc: `Accompagnement complet pour "${srv}" à ${cityShort}, avec devis clair et suivi attentif.`
+            }))
+          : [
+              { id: 'srv-0', title: 'Consultation & diagnostic', meta: 'Prioritaire', desc: `Évaluation précise de vos besoins à ${cityShort} avant toute intervention.` },
+              { id: 'srv-1', title: 'Exécution complète', meta: 'Clé en main', desc: 'Prise en charge sérieuse et transparente du début à la fin.' },
+              { id: 'srv-2', title: 'Suivi & accompagnement', meta: 'Inclus', desc: 'Réponse rapide à vos questions après la réalisation.' }
+            ],
+        tab2Items: [
+          { id: 'met-0', title: '1. Échange rapide', meta: 'Étape 1', desc: 'Nous cernons votre besoin réel par téléphone ou via le formulaire en quelques minutes.' },
+          { id: 'met-1', title: '2. Proposition claire', meta: 'Étape 2', desc: 'Vous recevez des détails précis et des délais réalistes avant de vous engager.' },
+          { id: 'met-2', title: '3. Réalisation soignée', meta: 'Étape 3', desc: 'Travail propre et vérifié à chaque étape pour votre tranquillité d’esprit.' }
+        ],
+        tab3Items: [
+          { id: 'eng-0', title: 'Proximité à ' + cityShort, meta: 'Local', desc: 'Une présence attentive auprès des gens et entreprises d’ici.' },
+          { id: 'eng-1', title: 'Communication directe', meta: 'Transparent', desc: 'Aucun jargon inutile : vous savez toujours où en est votre demande.' }
+        ],
+        faq: [
+          { q: `Quels sont les délais habituels à ${cityShort} ?`, a: `Nous traitons les demandes dans l'ordre d'arrivée et confirmons rapidement une plage horaire ou un rappel au ${phone}.` },
+          { q: `Comment obtenir une estimation ou un rendez-vous ?`, a: `Sélectionnez l'option souhaitée ci-dessous et remplissez le formulaire : un résumé clair s'affiche immédiatement.` },
+          { q: `Peut-on poser une question avant de réserver ?`, a: `Oui, indiquez votre question dans le champ message ou appelez directement au ${phone}.` }
+        ],
+        formHeading: 'Demander une soumission ou un rappel',
+        formSubmitLabel: 'Envoyer ma demande',
+        formConfirmTitle: 'Demande enregistrée avec succès'
+      };
+
+      if (sector === 'Automobile') {
+        sectorConfig = {
+          badge: 'Atelier & services automobiles • ' + cityShort,
+          heroTitle: `Entretien auto, mécanique et essais routiers à ${cityShort}`,
+          heroSubtitle: `Prenez rendez-vous à l'atelier ou planifiez un essai routier chez ${name} en quelques clics.`,
+          ctaLabel: 'Réserver atelier / essai',
+          tab1Label: 'Entretien & Atelier',
+          tab2Label: 'Essais & Véhicules',
+          tab3Label: 'Diagnostic & Pneus',
+          tab1Items: [
+            { id: 'auto-0', title: 'Entretien préventif & vidange', meta: 'Atelier', desc: 'Inspection des niveaux, filtres et points essentiels pour rouler en confiance.' },
+            { id: 'auto-1', title: 'Freins, suspension & direction', meta: 'Sécurité', desc: 'Vérification complète et remplacement avec pièces adaptées à votre véhicule.' },
+            { id: 'auto-2', title: 'Pose, permutation & équilibrage pneus', meta: 'Saisonnier', desc: 'Préparation rapide pour les routes du Québec et vérifications de sécurité.' }
+          ],
+          tab2Items: [
+            { id: 'auto-3', title: 'Essai routier planifié', meta: 'Essai', desc: `Essayez le véhicule ou évaluez le comportement routier sur un parcours à ${cityShort}.` },
+            { id: 'auto-4', title: 'Conseil d’achat & reprise', meta: 'Accompagnement', desc: 'Réponses claires sur l’état général, les options et les disponibilités.' }
+          ],
+          tab3Items: [
+            { id: 'auto-5', title: 'Diagnostic électronique précis', meta: 'Atelier', desc: 'Lecture des codes et explication claire des priorités avant toute réparation.' },
+            { id: 'auto-6', title: 'Vérification hivernale / routière', meta: 'Prévention', desc: 'Batterie, éclairage, essuie-glaces et adhérence contrôlés avant la route.' }
+          ],
+          faq: [
+            { q: `Puis-je demander un essai routier ou un rendez-vous d'atelier en ligne ?`, a: `Oui, choisissez l'onglet correspondant, cliquez sur l'élément souhaité et soumettez le formulaire pour préparer votre passage.` },
+            { q: `Suis-je informé avant l'exécution des réparations ?`, a: `Oui, chaque intervention est discutée clairement avec vous afin d'éviter toute surprise.` },
+            { q: `Où se situe l'établissement ?`, a: `${name} dessert ${cityShort} et les environs — joignable au ${phone}.` }
+          ],
+          formHeading: 'Rendez-vous atelier ou demande d’essai routier',
+          formSubmitLabel: 'Confirmer ma demande auto',
+          formConfirmTitle: 'Demande atelier / essai confirmée'
+        };
+      } else if (sector === 'Soins / Clinique') {
+        sectorConfig = {
+          badge: 'Soins & accompagnement • ' + cityShort,
+          heroTitle: `Des soins attentifs et accessibles à ${cityShort}`,
+          heroSubtitle: `Chez ${name}, chaque visite est pensée avec écoute, clarté et respect de votre rythme.`,
+          ctaLabel: 'Demander un rendez-vous',
+          tab1Label: 'Soins & Services',
+          tab2Label: 'Équipe & Approche',
+          tab3Label: 'Infos pratiques',
+          tab1Items: rawServices.length
+            ? rawServices.map((srv, idx) => ({
+                id: `care-${idx}`,
+                title: srv,
+                meta: 'Soin',
+                desc: `Séance et évaluation adaptées à vos besoins à ${cityShort}.`
+              }))
+            : [
+                { id: 'care-0', title: 'Évaluation & première consultation', meta: 'Accueil', desc: 'Un échange calme pour comprendre vos symptômes et vos objectifs de soin.' },
+                { id: 'care-1', title: 'Séance de suivi & réadaptation', meta: 'Suivi', desc: 'Progression graduelle et conseils pratiques entre les rencontres.' }
+              ],
+          tab2Items: [
+            { id: 'care-2', title: 'Écoute & approche humaine', meta: 'Clinique', desc: 'Un accueil bienveillant et des explications simples à chaque étape.' },
+            { id: 'care-3', title: 'Plan de soins personnalisé', meta: 'Sur mesure', desc: 'Recommandations ajustées à votre quotidien et à votre confort.' }
+          ],
+          tab3Items: [
+            { id: 'care-4', title: 'Reçus & questions administratives', meta: 'Pratique', desc: 'Posez vos questions sur les reçus, horaires ou disponibilités directement dans le formulaire.' },
+            { id: 'care-5', title: 'Disponibilités à ' + cityShort, meta: 'Local', desc: `Coordonnées directes : ${phone} • ${email}.` }
+          ],
+          faq: [
+            { q: `Comment se déroule une première demande de rendez-vous ?`, a: `Sélectionnez le soin qui vous intéresse et laissez vos coordonnées : notre équipe vous recontacte pour fixer un moment adapté.` },
+            { q: `Puis-je indiquer mes préférences d'horaire ?`, a: `Oui, précisez vos disponibilités (matin, après-midi, fin de journée) dans le formulaire ci-dessous.` },
+            { q: `Puis-je poser une question avant de réserver ?`, a: `Bien sûr, écrivez votre question dans le champ message ou appelez au ${phone}.` }
+          ],
+          formHeading: 'Demande de rendez-vous patient',
+          formSubmitLabel: 'Envoyer ma demande de rendez-vous',
+          formConfirmTitle: 'Demande de rendez-vous reçue'
+        };
+      } else if (sector === 'Commerce') {
+        sectorConfig = {
+          badge: 'Commerce local • ' + cityShort,
+          heroTitle: `Découvrez nos sélections et commandes chez ${name}`,
+          heroSubtitle: `Sélectionnez vos articles ou forfaits préférés et préparez votre réservation locale à ${cityShort}.`,
+          ctaLabel: 'Préparer une commande',
+          tab1Label: 'Produits & Sélections',
+          tab2Label: 'Forfaits & Coffrets',
+          tab3Label: 'Retrait & Boutique',
+          tab1Items: rawServices.length
+            ? rawServices.map((srv, idx) => ({
+                id: `shop-${idx}`,
+                title: srv,
+                meta: 'En boutique',
+                desc: `Sélection préparée avec soin par ${name} à ${cityShort}.`
+              }))
+            : [
+                { id: 'shop-0', title: 'Sélection maison du jour', meta: 'Populaire', desc: `Nos incontournables préparés frais à ${cityShort}.` },
+                { id: 'shop-1', title: 'Édition spéciale locale', meta: 'Limité', desc: 'Quantités préparées selon la demande de la semaine.' }
+              ],
+          tab2Items: [
+            { id: 'shop-2', title: 'Coffret découverte', meta: 'Forfait', desc: 'Un assortiment prêt à offrir ou à partager.' },
+            { id: 'shop-3', title: 'Commande groupée / événement', meta: 'Sur commande', desc: 'Préparation planifiée pour vos réceptions ou équipes.' }
+          ],
+          tab3Items: [
+            { id: 'shop-4', title: 'Réservation & retrait rapide', meta: 'Pratique', desc: 'Réservez votre sélection à l’avance pour éviter l’attente en boutique.' },
+            { id: 'shop-5', title: 'Conseils sur place à ' + cityShort, meta: 'Accueil', desc: `Appelez-nous au ${phone} pour vérifier les disponibilités du jour.` }
+          ],
+          faq: [
+            { q: `Comment fonctionne la sélection d'articles sur cette page ?`, a: `Cliquez sur « Ajouter / Sélectionner » sur les produits ou forfaits voulus : votre sélection s'ajoute automatiquement au formulaire de commande.` },
+            { q: `Puis-je réserver avant de passer en boutique ?`, a: `Oui, soumettez le formulaire avec votre nom et votre téléphone pour préparer votre demande.` },
+            { q: `Comment joindre la boutique ?`, a: `Par téléphone au ${phone} ou par courriel à ${email}.` }
+          ],
+          formHeading: 'Réservation / Commande locale',
+          formSubmitLabel: 'Valider ma demande de commande',
+          formConfirmTitle: 'Demande de commande préparée'
+        };
+      }
+
+      // Palettes distinctes pour chacun des 3 concepts
+      const palettes = [
+        // Concept 0 : Vitrine Essentielle (clair, bleu vif, épuré)
+        {
+          bgPage: '#f8fafc',
+          bgCard: '#ffffff',
+          bgSoft: '#eff6ff',
+          textMain: '#0f172a',
+          textMuted: '#475569',
+          border: '#e2e8f0',
+          primary: '#2563eb',
+          primaryHover: '#1d4ed8',
+          primaryText: '#ffffff',
+          badgeBg: '#dbeafe',
+          badgeText: '#1e40af',
+          fontImport: 'Plus+Jakarta+Sans:wght@400;500;600;700;800',
+          fontFamily: "'Plus Jakarta Sans', sans-serif"
+        },
+        // Concept 1 : Croissance Pro (crème chaud + vert émeraude éditorial)
+        {
+          bgPage: '#faf8f5',
+          bgCard: '#ffffff',
+          bgSoft: '#ecfdf5',
+          textMain: '#1c1917',
+          textMuted: '#57534e',
+          border: '#e7e5e4',
+          primary: '#047857',
+          primaryHover: '#065f46',
+          primaryText: '#ffffff',
+          badgeBg: '#d1fae5',
+          badgeText: '#065f46',
+          fontImport: 'Plus+Jakarta+Sans:wght@400;500;600;700;800',
+          fontFamily: "'Plus Jakarta Sans', sans-serif"
+        },
+        // Concept 2 : Solution Sur-Mesure (sombre élégant + ambre chaud)
+        {
+          bgPage: '#0b1120',
+          bgCard: '#111827',
+          bgSoft: '#1e293b',
+          textMain: '#f8fafc',
+          textMuted: '#94a3b8',
+          border: '#1f2937',
+          primary: '#f59e0b',
+          primaryHover: '#d97706',
+          primaryText: '#0f172a',
+          badgeBg: 'rgba(245, 158, 11, 0.16)',
+          badgeText: '#fbbf24',
+          fontImport: 'Plus+Jakarta+Sans:wght@400;500;600;700;800',
+          fontFamily: "'Plus Jakarta Sans', sans-serif"
+        }
+      ];
+
+      const pal = palettes[conceptIndex] || palettes[0];
+      const isCommerce = sector === 'Commerce';
+
+      // Sérialisation sécurisée des données pour le script interne de l'iframe
+      const siteData = {
+        name,
+        sector,
+        city,
+        cityShort,
+        phone,
+        email,
+        notes,
+        conceptName: concept.name,
+        tabs: {
+          tab1: { label: sectorConfig.tab1Label, items: sectorConfig.tab1Items },
+          tab2: { label: sectorConfig.tab2Label, items: sectorConfig.tab2Items },
+          tab3: { label: sectorConfig.tab3Label, items: sectorConfig.tab3Items }
+        },
+        faq: sectorConfig.faq,
+        isCommerce,
+        formConfirmTitle: sectorConfig.formConfirmTitle
+      };
+
+      const encodedData = encodeURIComponent(JSON.stringify(siteData));
+
+      return `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>${escapeHTML(name)} — ${escapeHTML(concept.name)}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=${pal.fontImport}&display=swap" rel="stylesheet">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: ${pal.fontFamily};
+      background: ${pal.bgPage};
+      color: ${pal.textMain};
+      line-height: 1.55;
+    }
+    .wrap { max-width: 1080px; margin: 0 auto; padding: 0 20px; }
+    header {
+      position: sticky; top: 0; z-index: 20;
+      background: ${pal.bgCard};
+      border-bottom: 1px solid ${pal.border};
+    }
+    .nav-inner {
+      display: flex; align-items: center; justify-content: space-between;
+      min-height: 64px; gap: 12px;
+    }
+    .brand { font-weight: 800; font-size: 18px; text-decoration: none; color: ${pal.textMain}; }
+    .nav-links { display: flex; align-items: center; gap: 20px; font-size: 14px; font-weight: 600; }
+    .nav-links a { color: ${pal.textMuted}; text-decoration: none; }
+    .nav-links a:hover { color: ${pal.textMain}; }
+    .burger-btn {
+      display: none; padding: 8px 12px; border-radius: 10px;
+      border: 1px solid ${pal.border}; background: ${pal.bgSoft};
+      color: ${pal.textMain}; font-weight: 700; font-size: 13px; cursor: pointer;
+    }
+    .mobile-drawer {
+      display: none; flex-direction: column; gap: 8px;
+      padding: 12px 20px 18px; border-top: 1px solid ${pal.border};
+      background: ${pal.bgCard};
+    }
+    .mobile-drawer.open { display: flex; }
+    .mobile-drawer a { color: ${pal.textMain}; text-decoration: none; font-weight: 600; font-size: 14px; padding: 6px 0; }
+
+    .btn-primary {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      background: ${pal.primary}; color: ${pal.primaryText};
+      border: none; border-radius: 12px; padding: 12px 18px;
+      font-weight: 800; font-size: 14px; cursor: pointer; text-decoration: none;
+      transition: background 0.15s ease, transform 0.1s ease;
+    }
+    .btn-primary:hover { background: ${pal.primaryHover}; }
+    .btn-primary:active { transform: scale(0.99); }
+
+    .btn-secondary {
+      display: inline-flex; align-items: center; justify-content: center; gap: 6px;
+      background: transparent; color: ${pal.textMain};
+      border: 1px solid ${pal.border}; border-radius: 10px; padding: 9px 14px;
+      font-weight: 700; font-size: 13px; cursor: pointer;
+      transition: background 0.15s ease, border-color 0.15s ease;
+    }
+    .btn-secondary:hover { background: ${pal.bgSoft}; }
+    .btn-secondary.selected {
+      background: ${pal.badgeBg}; color: ${pal.badgeText}; border-color: ${pal.primary};
+    }
+
+    .hero { padding: 48px 0 36px; }
+    .pill {
+      display: inline-block; padding: 6px 12px; border-radius: 999px;
+      background: ${pal.badgeBg}; color: ${pal.badgeText};
+      font-size: 12px; font-weight: 800; margin-bottom: 14px;
+    }
+    h1 { font-size: clamp(28px, 4.5vw, 44px); line-height: 1.12; margin: 0 0 14px; font-weight: 800; letter-spacing: -0.02em; }
+    .hero-sub { font-size: 16px; color: ${pal.textMuted}; max-width: 680px; margin: 0 0 22px; }
+    .hero-actions { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; }
+
+    section.block { padding: 36px 0; }
+    h2 { font-size: clamp(22px, 3vw, 30px); margin: 0 0 8px; font-weight: 800; }
+    .section-sub { color: ${pal.textMuted}; font-size: 14px; margin: 0 0 20px; }
+
+    .tabs-bar { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+    .tab-btn {
+      padding: 10px 16px; border-radius: 11px; border: 1px solid ${pal.border};
+      background: ${pal.bgCard}; color: ${pal.textMuted};
+      font-weight: 800; font-size: 13px; cursor: pointer;
+    }
+    .tab-btn.active {
+      background: ${pal.primary}; color: ${pal.primaryText}; border-color: ${pal.primary};
+    }
+
+    .cards-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; }
+    .card {
+      background: ${pal.bgCard}; border: 1px solid ${pal.border};
+      border-radius: 16px; padding: 20px;
+      display: flex; flex-direction: column; justify-content: space-between; gap: 14px;
+    }
+    .card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+    .card-tag {
+      font-size: 11px; font-weight: 800; padding: 4px 10px; border-radius: 999px;
+      background: ${pal.badgeBg}; color: ${pal.badgeText};
+    }
+    .card h3 { margin: 8px 0 6px; font-size: 17px; font-weight: 800; }
+    .card p { margin: 0; font-size: 14px; color: ${pal.textMuted}; }
+
+    .faq-list { display: flex; flex-direction: column; gap: 10px; max-width: 780px; }
+    .faq-item { background: ${pal.bgCard}; border: 1px solid ${pal.border}; border-radius: 14px; overflow: hidden; }
+    .faq-trigger {
+      width: 100%; text-align: left; background: transparent; border: none;
+      padding: 16px 18px; color: ${pal.textMain}; font-weight: 700; font-size: 15px;
+      display: flex; align-items: center; justify-content: space-between; gap: 12px; cursor: pointer;
+    }
+    .faq-panel {
+      display: none; padding: 0 18px 16px; color: ${pal.textMuted}; font-size: 14px;
+      border-top: 1px solid ${pal.border}; padding-top: 12px;
+    }
+    .faq-panel.open { display: block; }
+
+    .form-box {
+      background: ${pal.bgCard}; border: 1px solid ${pal.border};
+      border-radius: 18px; padding: 24px; max-width: 780px;
+    }
+    .form-row { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 14px; }
+    label { display: block; font-size: 12px; font-weight: 700; margin-bottom: 6px; color: ${pal.textMuted}; }
+    input, select, textarea {
+      width: 100%; padding: 11px 13px; border-radius: 10px;
+      border: 1px solid ${pal.border}; background: ${pal.bgPage};
+      color: ${pal.textMain}; font-family: inherit; font-size: 14px;
+    }
+    textarea { min-height: 88px; resize: vertical; }
+
+    .selected-chip {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 5px 10px; border-radius: 8px; margin: 0 6px 6px 0;
+      background: ${pal.badgeBg}; color: ${pal.badgeText}; font-size: 12px; font-weight: 700;
+    }
+    .confirmation-box {
+      display: none; margin-top: 16px; padding: 18px; border-radius: 14px;
+      background: ${pal.bgSoft}; border: 1px solid ${pal.primary};
+    }
+    .confirmation-box.visible { display: block; }
+
+    footer {
+      margin-top: 40px; padding: 24px 0; border-top: 1px solid ${pal.border};
+      font-size: 13px; color: ${pal.textMuted};
+    }
+
+    @media (max-width: 760px) {
+      .nav-links { display: none; }
+      .burger-btn { display: inline-flex; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap nav-inner">
+      <a href="#top" class="brand">${escapeHTML(name)}</a>
+      <nav class="nav-links" aria-label="Navigation principale">
+        <a href="#offres">Offres & Services</a>
+        <a href="#faq">FAQ</a>
+        <a href="#contact">Contact</a>
+      </nav>
+      <button type="button" class="burger-btn" id="burger-btn" aria-expanded="false">☰ Menu</button>
+    </div>
+    <div class="mobile-drawer" id="mobile-drawer">
+      <a href="#offres" class="mobile-nav-link">Offres & Services</a>
+      <a href="#faq" class="mobile-nav-link">FAQ</a>
+      <a href="#contact" class="mobile-nav-link">Contact (${escapeHTML(phone)})</a>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero">
+      <div class="wrap">
+        <span class="pill">${escapeHTML(sectorConfig.badge)}</span>
+        <h1>${escapeHTML(sectorConfig.heroTitle)}</h1>
+        <p class="hero-sub">${escapeHTML(sectorConfig.heroSubtitle)}</p>
+        <div class="hero-actions">
+          <button type="button" class="btn-primary" id="hero-cta-btn">${escapeHTML(sectorConfig.ctaLabel)}</button>
+          <a href="tel:${escapeHTML(phone.replace(/[^0-9+]/g, ''))}" class="btn-secondary">Appeler : ${escapeHTML(phone)}</a>
+        </div>
+      </div>
+    </section>
+
+    <section class="block" id="offres">
+      <div class="wrap">
+        <h2>Explorez nos options</h2>
+        <p class="section-sub">Changez d'onglet ou sélectionnez un élément pour l'ajouter directement à votre demande.</p>
+        <div class="tabs-bar" role="tablist" id="tabs-bar"></div>
+        <div class="cards-grid" id="cards-grid"></div>
+      </div>
+    </section>
+
+    <section class="block" id="faq">
+      <div class="wrap">
+        <h2>Questions fréquentes</h2>
+        <p class="section-sub">Cliquez sur une question pour afficher ou masquer la réponse.</p>
+        <div class="faq-list" id="faq-list"></div>
+      </div>
+    </section>
+
+    <section class="block" id="contact">
+      <div class="wrap">
+        <h2>${escapeHTML(sectorConfig.formHeading)}</h2>
+        <p class="section-sub">Réponse directe • ${escapeHTML(phone)} • ${escapeHTML(email)}</p>
+
+        <div class="form-box">
+          <div style="margin-bottom:14px;">
+            <label>Éléments sélectionnés pour votre demande</label>
+            <div id="selected-items-container" style="min-height:28px;font-size:13px;color:${pal.textMuted};">Aucun élément sélectionné (vous pouvez cliquer sur « Sélectionner » ci-dessus ou choisir dans la liste).</div>
+          </div>
+
+          <form id="demo-request-form" novalidate>
+            <div class="form-row">
+              <div>
+                <label for="client-fullname">Nom complet *</label>
+                <input id="client-fullname" name="fullname" type="text" required placeholder="Ex: Marc Lavoie" />
+              </div>
+              <div>
+                <label for="client-phone">Téléphone *</label>
+                <input id="client-phone" name="phone" type="tel" required placeholder="Ex: 450-555-0199" />
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div>
+                <label for="client-service-select">Service ou option principale</label>
+                <select id="client-service-select" name="service"></select>
+              </div>
+              <div>
+                <label for="client-timing">Moment préféré</label>
+                <input id="client-timing" name="timing" type="text" placeholder="Ex: Mardi matin ou cette semaine" />
+              </div>
+            </div>
+
+            <div style="margin-bottom:16px;">
+              <label for="client-message">Détails ou question</label>
+              <textarea id="client-message" name="message" placeholder="Précisez votre besoin..."></textarea>
+            </div>
+
+            <div id="form-error-msg" style="display:none;color:#ef4444;font-size:13px;font-weight:700;margin-bottom:10px;">
+              Veuillez indiquer votre nom complet et votre numéro de téléphone.
+            </div>
+
+            <button type="submit" class="btn-primary">${escapeHTML(sectorConfig.formSubmitLabel)}</button>
+          </form>
+
+          <div class="confirmation-box" id="form-confirmation-box" aria-live="polite">
+            <div style="font-weight:800;font-size:16px;margin-bottom:6px;" id="confirm-title"></div>
+            <div id="confirm-summary" style="font-size:13px;margin-bottom:12px;"></div>
+            <button type="button" class="btn-secondary" id="reset-form-btn">Envoyer une autre demande</button>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap" style="display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px;">
+      <span>© ${new Date().getFullYear()} ${escapeHTML(name)} — ${escapeHTML(city)}</span>
+      <span>${escapeHTML(phone)} • ${escapeHTML(email)}</span>
+    </div>
+  </footer>
+
+  <script>
+    (function () {
+      const DATA = JSON.parse(decodeURIComponent("${encodedData}"));
+      let currentTabKey = 'tab1';
+      let selectedTitles = [];
+
+      // Menu mobile
+      const burgerBtn = document.getElementById('burger-btn');
+      const mobileDrawer = document.getElementById('mobile-drawer');
+      if (burgerBtn && mobileDrawer) {
+        burgerBtn.addEventListener('click', function () {
+          const isOpen = mobileDrawer.classList.toggle('open');
+          burgerBtn.setAttribute('aria-expanded', String(isOpen));
+        });
+        mobileDrawer.querySelectorAll('a').forEach(function (link) {
+          link.addEventListener('click', function () {
+            mobileDrawer.classList.remove('open');
+            burgerBtn.setAttribute('aria-expanded', 'false');
+          });
+        });
+      }
+
+      // Bouton principal Hero -> défile vers le formulaire
+      const heroCta = document.getElementById('hero-cta-btn');
+      if (heroCta) {
+        heroCta.addEventListener('click', function () {
+          const contactEl = document.getElementById('contact');
+          if (contactEl) contactEl.scrollIntoView({ behavior: 'smooth' });
+          const nameInput = document.getElementById('client-fullname');
+          if (nameInput) nameInput.focus();
+        });
+      }
+
+      // Rendu des onglets
+      const tabsBar = document.getElementById('tabs-bar');
+      const cardsGrid = document.getElementById('cards-grid');
+      const serviceSelect = document.getElementById('client-service-select');
+
+      function populateServiceSelect() {
+        const allItems = [
+          ...DATA.tabs.tab1.items,
+          ...DATA.tabs.tab2.items,
+          ...DATA.tabs.tab3.items
+        ];
+        serviceSelect.innerHTML = allItems.map(function (it) {
+          return '<option value="' + it.title.replace(/"/g, '&quot;') + '">' + it.title + '</option>';
+        }).join('');
+      }
+
+      function renderTabs() {
+        const keys = ['tab1', 'tab2', 'tab3'];
+        tabsBar.innerHTML = keys.map(function (k) {
+          const tabObj = DATA.tabs[k];
+          const activeClass = k === currentTabKey ? 'tab-btn active' : 'tab-btn';
+          return '<button type="button" class="' + activeClass + '" data-tab-key="' + k + '" role="tab" aria-selected="' + (k === currentTabKey) + '">' + tabObj.label + '</button>';
+        }).join('');
+
+        tabsBar.querySelectorAll('[data-tab-key]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            currentTabKey = btn.getAttribute('data-tab-key');
+            renderTabs();
+            renderCards();
+          });
+        });
+      }
+
+      function renderSelectedChips() {
+        const container = document.getElementById('selected-items-container');
+        if (!selectedTitles.length) {
+          container.textContent = 'Aucun élément sélectionné (cliquez sur un bouton de sélection ci-dessus pour l’ajouter).';
+          return;
+        }
+        container.innerHTML = selectedTitles.map(function (t, idx) {
+          return '<span class="selected-chip">' + t + ' <button type="button" data-remove-idx="' + idx + '" style="background:none;border:none;color:inherit;font-weight:800;cursor:pointer;">✕</button></span>';
+        }).join('');
+
+        container.querySelectorAll('[data-remove-idx]').forEach(function (remBtn) {
+          remBtn.addEventListener('click', function () {
+            const idx = Number(remBtn.getAttribute('data-remove-idx'));
+            selectedTitles.splice(idx, 1);
+            renderSelectedChips();
+            renderCards();
+          });
+        });
+      }
+
+      function renderCards() {
+        const items = DATA.tabs[currentTabKey].items || [];
+        const actionLabel = DATA.isCommerce ? 'Ajouter à la sélection' : 'Choisir pour ma demande';
+
+        cardsGrid.innerHTML = items.map(function (item) {
+          const isPicked = selectedTitles.indexOf(item.title) !== -1;
+          const btnText = isPicked ? '✓ Sélectionné' : actionLabel;
+          const btnClass = isPicked ? 'btn-secondary selected' : 'btn-secondary';
+          return (
+            '<article class="card">' +
+              '<div>' +
+                '<div class="card-top"><span class="card-tag">' + item.meta + '</span></div>' +
+                '<h3>' + item.title + '</h3>' +
+                '<p>' + item.desc + '</p>' +
+              '</div>' +
+              '<button type="button" class="' + btnClass + '" data-pick-title="' + item.title.replace(/"/g, '&quot;') + '">' + btnText + '</button>' +
+            '</article>'
+          );
+        }).join('');
+
+        cardsGrid.querySelectorAll('[data-pick-title]').forEach(function (btn) {
+          btn.addEventListener('click', function () {
+            const picked = btn.getAttribute('data-pick-title');
+            const pos = selectedTitles.indexOf(picked);
+            if (pos === -1) {
+              selectedTitles.push(picked);
+              serviceSelect.value = picked;
+            } else {
+              selectedTitles.splice(pos, 1);
+            }
+            renderSelectedChips();
+            renderCards();
+          });
+        });
+      }
+
+      // Rendu FAQ interactive
+      const faqList = document.getElementById('faq-list');
+      faqList.innerHTML = DATA.faq.map(function (f, idx) {
+        return (
+          '<div class="faq-item">' +
+            '<button type="button" class="faq-trigger" data-faq-idx="' + idx + '" aria-expanded="false">' +
+              '<span>' + f.q + '</span>' +
+              '<span id="faq-sign-' + idx + '">+</span>' +
+            '</button>' +
+            '<div class="faq-panel" id="faq-panel-' + idx + '">' + f.a + '</div>' +
+          '</div>'
+        );
+      }).join('');
+
+      faqList.querySelectorAll('[data-faq-idx]').forEach(function (trig) {
+        trig.addEventListener('click', function () {
+          const idx = trig.getAttribute('data-faq-idx');
+          const panel = document.getElementById('faq-panel-' + idx);
+          const sign = document.getElementById('faq-sign-' + idx);
+          const nowOpen = panel.classList.toggle('open');
+          trig.setAttribute('aria-expanded', String(nowOpen));
+          sign.textContent = nowOpen ? '−' : '+';
+        });
+      });
+
+      // Soumission formulaire avec confirmation claire & récapitulatif
+      const form = document.getElementById('demo-request-form');
+      const errorBox = document.getElementById('form-error-msg');
+      const confirmBox = document.getElementById('form-confirmation-box');
+      const confirmTitle = document.getElementById('confirm-title');
+      const confirmSummary = document.getElementById('confirm-summary');
+      const resetBtn = document.getElementById('reset-form-btn');
+
+      form.addEventListener('submit', function (e) {
+        e.preventDefault();
+        const fullName = document.getElementById('client-fullname').value.trim();
+        const telVal = document.getElementById('client-phone').value.trim();
+        const mainSrv = serviceSelect.value;
+        const timingVal = document.getElementById('client-timing').value.trim();
+        const msgVal = document.getElementById('client-message').value.trim();
+
+        if (!fullName || !telVal) {
+          errorBox.style.display = 'block';
+          return;
+        }
+        errorBox.style.display = 'none';
+
+        const listStr = selectedTitles.length ? selectedTitles.join(', ') : mainSrv;
+        confirmTitle.textContent = '✓ ' + DATA.formConfirmTitle + ' (' + DATA.name + ')';
+        confirmSummary.innerHTML =
+          '<strong>Client :</strong> ' + fullName + ' (' + telVal + ')<br>' +
+          '<strong>Sélection :</strong> ' + listStr + '<br>' +
+          (timingVal ? '<strong>Moment souhaité :</strong> ' + timingVal + '<br>' : '') +
+          (msgVal ? '<strong>Message :</strong> ' + msgVal : '');
+
+        form.style.display = 'none';
+        confirmBox.classList.add('visible');
+      });
+
+      resetBtn.addEventListener('click', function () {
+        form.reset();
+        selectedTitles = [];
+        renderSelectedChips();
+        renderCards();
+        confirmBox.classList.remove('visible');
+        form.style.display = 'block';
+      });
+
+      populateServiceSelect();
+      renderTabs();
+      renderCards();
+      renderSelectedChips();
+    })();
+  <\/script>
+</body>
+</html>`;
+    }
+
+    // =========================================================================
+    // PROJETS EXEMPLES & PERSISTANCE LOCALSTORAGE
+    // =========================================================================
+    function buildProjectFromProspect(rawProspect, indexInList = 0) {
+      const prospect = {
+        name: rawProspect.name || 'Entreprise Locale',
+        sector: rawProspect.sector || 'PME générale',
+        city: rawProspect.city || 'Saint-Bruno-de-Montarville, QC',
+        phone: rawProspect.phone || '',
+        email: rawProspect.email || '',
+        services: rawProspect.services || 'Service principal, Accompagnement, Devis rapide',
+        notes: rawProspect.notes || ''
+      };
+
+      const project = {
+        id: 'proj-' + Date.now() + '-' + Math.random().toString(36).slice(2, 7),
+        title: prospect.name,
+        status: indexInList === 0 ? 'Maquettes prêtes' : 'À prospecter',
+        selectedConceptIndex: 1,
+        previewConceptIndex: 1,
+        prospect,
+        options: {
+          seoLocal: false,
+          copywriting: false,
+          domainSetup: false,
+          bookingFlow: false,
+          carePlan: false
+        },
+        websitesHTML: [
+          buildInteractiveWebsiteHTML(prospect, 0),
+          buildInteractiveWebsiteHTML(prospect, 1),
+          buildInteractiveWebsiteHTML(prospect, 2)
+        ],
+        callScript: '',
+        emailSubject: '',
+        emailBody: '',
+        deliveryChecklist: {
+          htmlReady: false,
+          domainLinked: false,
+          formsChecked: false,
+          clientHandedOver: false
+        },
+        deliverySummary: ''
+      };
+
+      project.callScript = generateCallScriptText(project);
+      const mailDraft = generateEmailDraftText(project);
+      project.emailSubject = mailDraft.subject;
+      project.emailBody = mailDraft.body;
+      project.deliverySummary = generateDeliverySummaryText(project);
+
+      return project;
+    }
+
+    function initDefaultData() {
+      const p1 = buildProjectFromProspect(SAMPLE_PROSPECTS[0], 0);
+      const p2 = buildProjectFromProspect(SAMPLE_PROSPECTS[1], 1);
+      appState.projects = [p1, p2];
+      appState.activeProjectId = p1.id;
+      appState.sampleCursor = 2;
+      persistState();
+    }
+
+    function loadState() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        if (raw) {
+          const parsed = JSON.parse(raw);
+          appState = {
+            ...appState,
+            ...parsed,
+            profile: { ...appState.profile, ...(parsed.profile || {}) }
+          };
+        }
+      } catch (err) {
+        console.error('Erreur lecture localStorage:', err);
+      }
+
+      if (!Array.isArray(appState.projects) || appState.projects.length === 0) {
+        initDefaultData();
+      } else if (!appState.projects.some(p => p.id === appState.activeProjectId)) {
+        appState.activeProjectId = appState.projects[0].id;
+      }
+    }
+
+    function persistState() {
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(appState));
+      } catch (err) {
+        console.error('Erreur sauvegarde localStorage:', err);
+      }
+      renderSidebar();
+    }
+
+    function getCurrentProject() {
+      return appState.projects.find(p => p.id === appState.activeProjectId) || appState.projects[0];
+    }
+
+    function computeQuote(project) {
+      const baseConcept = CONCEPTS[project.selectedConceptIndex] || CONCEPTS[1];
+      let totalOneTime = baseConcept.price;
+      let totalMonthly = 0;
+      const activeAddons = [];
+
+      QUOTE_OPTIONS.forEach(opt => {
+        if (project.options && project.options[opt.id]) {
+          activeAddons.push(opt);
+          if (opt.monthly) {
+            totalMonthly += opt.price;
+          } else {
+            totalOneTime += opt.price;
+          }
+        }
+      });
+
+      return { baseConcept, totalOneTime, totalMonthly, activeAddons };
+    }
+
+    // =========================================================================
+    // AJOUT, FILTRE, DUPLICATION & SUPPRESSION DE PROSPECTS
+    // =========================================================================
+    function openNewProspectModal() {
+      const current = getCurrentProject();
+      document.getElementById('modal-p-name').value = '';
+      document.getElementById('modal-p-sector').value = current?.prospect?.sector || 'Automobile';
+      document.getElementById('modal-p-city').value = current?.prospect?.city || 'Saint-Bruno-de-Montarville, QC';
+      document.getElementById('modal-p-phone').value = '';
+      document.getElementById('modal-p-email').value = '';
+      document.getElementById('modal-p-notes').value = '';
+      document.getElementById('new-prospect-modal').classList.remove('hidden');
+      document.getElementById('modal-p-name').focus();
+    }
+
+    function closeNewProspectModal() {
+      document.getElementById('new-prospect-modal').classList.add('hidden');
+    }
+
+    function addProspectAndSelect(prospectData) {
+      const newProj = buildProjectFromProspect(prospectData, 1);
+      appState.projects.unshift(newProj);
+      appState.activeProjectId = newProj.id;
+      appState.activeTab = 1;
+      persistState();
+      renderCurrentProject();
+      showToast(`Prospect « ${newProj.title} » ajouté et sélectionné !`, 'success');
+    }
+
+    function submitNewProspectModal(e) {
+      e.preventDefault();
+      const nameVal = document.getElementById('modal-p-name').value.trim();
+      if (!nameVal) return;
+
+      const data = {
+        name: nameVal,
+        sector: document.getElementById('modal-p-sector').value,
+        city: document.getElementById('modal-p-city').value.trim() || 'Québec',
+        phone: document.getElementById('modal-p-phone').value.trim(),
+        email: document.getElementById('modal-p-email').value.trim(),
+        services: '',
+        notes: document.getElementById('modal-p-notes').value.trim()
+      };
+
+      closeNewProspectModal();
+      addProspectAndSelect(data);
+      closeMobileSidebarIfOpen();
+    }
+
+    function quickCreateProspectFromSearch() {
+      const quickName = document.getElementById('quick-add-name').value.trim();
+      if (!quickName) {
+        showToast('Entrez d’abord le nom d’une entreprise.', 'warning');
+        return;
+      }
+
+      const data = {
+        name: quickName,
+        sector: document.getElementById('search-sector').value,
+        city: document.getElementById('search-city').value.trim() || 'Saint-Bruno-de-Montarville, QC',
+        phone: '',
+        email: '',
+        services: document.getElementById('search-keyword').value.trim(),
+        notes: 'Repéré lors d’une recherche de prospection locale.'
+      };
+
+      document.getElementById('quick-add-name').value = '';
+      addProspectAndSelect(data);
+    }
+
+    function loadSampleProspect() {
+      const sample = SAMPLE_PROSPECTS[appState.sampleCursor % SAMPLE_PROSPECTS.length];
+      appState.sampleCursor += 1;
+      addProspectAndSelect(sample);
+      closeMobileSidebarIfOpen();
+    }
+
+    function selectProjectFromLibrary(id) {
+      appState.activeProjectId = id;
+      persistState();
+      renderCurrentProject();
+      closeMobileSidebarIfOpen();
+    }
+
+    function duplicateCurrentProject() {
+      const cur = getCurrentProject();
+      const copy = JSON.parse(JSON.stringify(cur));
+      copy.id = 'proj-' + Date.now() + '-' + Math.random().toString(36).slice(2, 5);
+      copy.title = `${cur.title} (Copie)`;
+      copy.prospect.name = copy.title;
+      copy.websitesHTML = [
+        buildInteractiveWebsiteHTML(copy.prospect, 0),
+        buildInteractiveWebsiteHTML(copy.prospect, 1),
+        buildInteractiveWebsiteHTML(copy.prospect, 2)
+      ];
+      appState.projects.unshift(copy);
+      appState.activeProjectId = copy.id;
+      persistState();
+      renderCurrentProject();
+      showToast('Projet dupliqué dans la bibliothèque.', 'info');
+    }
+
+    function deleteProjectFromLibrary(event, id) {
+      event.stopPropagation();
+      if (appState.projects.length <= 1) {
+        showToast('Gardez au moins un projet dans la bibliothèque.', 'warning');
+        return;
+      }
+      appState.projects = appState.projects.filter(p => p.id !== id);
+      if (appState.activeProjectId === id) {
+        appState.activeProjectId = appState.projects[0].id;
+      }
+      persistState();
+      renderCurrentProject();
+      showToast('Projet retiré de la bibliothèque.', 'info');
+    }
+
+    // =========================================================================
+    // RENDU BARRE LATÉRALE & EN-TÊTE
+    // =========================================================================
+    function renderSidebar() {
+      let earned = 0;
+      let potential = 0;
+      let monthly = 0;
+
+      appState.projects.forEach(p => {
+        const q = computeQuote(p);
+        if (p.status === 'Signé & Livré') {
+          earned += q.totalOneTime;
+          monthly += q.totalMonthly;
+        } else {
+          potential += q.totalOneTime;
+        }
+      });
+
+      const goal = Number(appState.profile.monthlyGoal) || 3500;
+      const pct = Math.min(100, Math.round((earned / goal) * 100));
+
+      document.getElementById('sidebar-revenue-label').textContent =
+        `${earned.toLocaleString('fr-CA')} $ / ${goal.toLocaleString('fr-CA')} $`;
+      document.getElementById('sidebar-revenue-bar').style.width = `${pct}%`;
+      document.getElementById('sidebar-pipeline-label').textContent =
+        `Potentiel : ${potential.toLocaleString('fr-CA')} $`;
+      document.getElementById('sidebar-mrr-label').textContent =
+        `+${monthly} $/mois`;
+      document.getElementById('sidebar-studio-name').textContent =
+        `⚙ ${appState.profile.studioName || 'Profil & Clé Gemini'}`;
+
+      renderLibraryList();
+    }
+
+    function renderLibraryList() {
+      const searchVal = (document.getElementById('library-search-input')?.value || '').trim().toLowerCase();
+      const sectorFilter = document.getElementById('library-sector-filter')?.value || 'ALL';
+
+      const filtered = appState.projects.filter(p => {
+        const matchSector = sectorFilter === 'ALL' || p.prospect.sector === sectorFilter;
+        const haystack = `${p.title} ${p.prospect.city} ${p.prospect.sector}`.toLowerCase();
+        const matchSearch = !searchVal || haystack.includes(searchVal);
+        return matchSector && matchSearch;
+      });
+
+      document.getElementById('sidebar-project-count').textContent = String(filtered.length);
+
+      const listEl = document.getElementById('library-list');
+      if (!filtered.length) {
+        listEl.innerHTML = `<div class="p-4 text-center text-xs text-slate-400 bg-slate-850/60 rounded-xl border border-slate-800">Aucun projet ne correspond à ce filtre.</div>`;
+        return;
+      }
+
+      listEl.innerHTML = filtered.map(proj => {
+        const isActive = proj.id === appState.activeProjectId;
+        const q = computeQuote(proj);
+        return `
+          <div onclick="selectProjectFromLibrary('${proj.id}')" class="group p-3.5 rounded-xl cursor-pointer border transition ${
+            isActive
+              ? 'bg-indigo-600/20 border-indigo-500/60'
+              : 'bg-slate-850/60 border-slate-800/80 hover:border-slate-700'
+          }">
+            <div class="flex items-start justify-between gap-2">
+              <p class="text-xs font-extrabold text-white truncate">${escapeHTML(proj.title)}</p>
+              <button type="button" onclick="deleteProjectFromLibrary(event, '${proj.id}')" class="text-slate-500 hover:text-rose-400 text-xs font-bold px-1" title="Supprimer">✕</button>
+            </div>
+            <p class="text-[11px] text-slate-400 truncate mt-0.5">${escapeHTML(proj.prospect.sector)} • ${escapeHTML(proj.prospect.city)}</p>
+            <div class="mt-2 flex items-center justify-between text-[11px]">
+              <span class="px-2 py-0.5 rounded bg-slate-900 text-slate-300 font-semibold">${escapeHTML(proj.status)}</span>
+              <span class="font-extrabold ${proj.status === 'Signé & Livré' ? 'text-emerald-400' : 'text-indigo-300'}">${q.totalOneTime.toLocaleString('fr-CA')} $</span>
+            </div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    function renderCurrentProject() {
+      const proj = getCurrentProject();
+      const p = proj.prospect;
+
+      document.getElementById('header-project-title').value = proj.title;
+      document.getElementById('header-project-subtitle').textContent = `${p.sector} • ${p.city}`;
+      document.getElementById('header-project-status').value = proj.status;
+
+      // Onglet 1
+      document.getElementById('search-sector').value = p.sector;
+      document.getElementById('search-city').value = p.city;
+      document.getElementById('prospect-name').value = p.name;
+      document.getElementById('prospect-sector').value = p.sector;
+      document.getElementById('prospect-city').value = p.city;
+      document.getElementById('prospect-phone').value = p.phone;
+      document.getElementById('prospect-email').value = p.email;
+      document.getElementById('prospect-services').value = p.services;
+      document.getElementById('prospect-notes').value = p.notes;
+
+      refreshSearchLinks();
+      generatePitchPoints();
+      selectTab(appState.activeTab || 1);
+    }
+
+    function renameCurrentProject(newTitle) {
+      const proj = getCurrentProject();
+      const clean = newTitle.trim() || 'Prospect sans nom';
+      proj.title = clean;
+      proj.prospect.name = clean;
+      rebuildWebsitesForProject(proj);
+      persistState();
+    }
+
+    function changeCurrentProjectStatus(newStatus) {
+      const proj = getCurrentProject();
+      proj.status = newStatus;
+      persistState();
+      showToast(`Statut : ${newStatus}`, 'success');
+    }
+
+    // =========================================================================
+    // ONGLET 1 : RECHERCHES CIBLÉES & FICHE PROSPECT
+    // =========================================================================
+    function refreshSearchLinks() {
+      const sector = document.getElementById('search-sector').value;
+      const city = document.getElementById('search-city').value.trim() || 'Québec';
+      const kw = document.getElementById('search-keyword').value.trim();
+
+      const sectorTerm = sector === 'Soins / Clinique' ? 'clinique soins' : sector.toLowerCase();
+      const queryBase = `${sectorTerm} ${kw} ${city}`.replace(/\s+/g, ' ').trim();
+
+      const links = [
+        {
+          title: 'Google Maps Local',
+          desc: 'Repérer les fiches locales sans lien de site web',
+          url: `https://www.google.com/maps/search/${encodeURIComponent(queryBase)}`
+        },
+        {
+          title: 'Recherche Web (sans site)',
+          desc: 'Trouver des entreprises locales sans site officiel',
+          url: `https://www.google.com/search?q=${encodeURIComponent(queryBase + ' -"site web"')}`
+        },
+        {
+          title: 'Pages Facebook locales',
+          desc: 'Commerces actifs sur Facebook uniquement',
+          url: `https://www.google.com/search?q=${encodeURIComponent(queryBase + ' site:facebook.com')}`
+        }
+      ];
+
+      document.getElementById('search-links-grid').innerHTML = links.map(item => `
+        <a href="${item.url}" target="_blank" rel="noopener noreferrer" class="p-3.5 rounded-xl bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-indigo-500/50 transition block">
+          <div class="text-xs font-extrabold text-indigo-300 flex items-center justify-between">
+            <span>${escapeHTML(item.title)}</span>
+            <span>↗</span>
+          </div>
+          <p class="text-[11px] text-slate-400 mt-1">${escapeHTML(item.desc)}</p>
+        </a>
+      `).join('');
+    }
+
+    function saveProspectForm() {
+      const proj = getCurrentProject();
+      proj.prospect.name = document.getElementById('prospect-name').value.trim() || 'Entreprise Locale';
+      proj.prospect.sector = document.getElementById('prospect-sector').value;
+      proj.prospect.city = document.getElementById('prospect-city').value.trim() || 'Québec';
+      proj.prospect.phone = document.getElementById('prospect-phone').value.trim();
+      proj.prospect.email = document.getElementById('prospect-email').value.trim();
+      proj.prospect.services = document.getElementById('prospect-services').value.trim();
+      proj.prospect.notes = document.getElementById('prospect-notes').value.trim();
+
+      proj.title = proj.prospect.name;
+      document.getElementById('header-project-title').value = proj.title;
+      document.getElementById('header-project-subtitle').textContent = `${proj.prospect.sector} • ${proj.prospect.city}`;
+      document.getElementById('search-sector').value = proj.prospect.sector;
+      document.getElementById('search-city').value = proj.prospect.city;
+
+      refreshSearchLinks();
+      generatePitchPoints();
+      persistState();
+    }
+
+    function generatePitchPoints() {
+      const p = getCurrentProject().prospect;
+      const cityShort = (p.city || 'la région').split(',')[0].trim();
+
+      let points = [];
+      if (p.sector === 'Automobile') {
+        points = [
+          `<strong>Rendez-vous & essais routiers :</strong> Permettre aux conducteurs de ${cityShort} de demander un entretien ou un essai routier en ligne réduit les appels manqués en atelier.`,
+          `<strong>Visibilité locale :</strong> Les automobilistes vérifient rapidement les services (pneus, freins, entretien) avant de se déplacer.`,
+          `<strong>Confiance immédiate :</strong> Une page claire présente vos spécialités et votre accueil sans détour.`
+        ];
+      } else if (p.sector === 'Soins / Clinique') {
+        points = [
+          `<strong>Parcours rassurant :</strong> Présenter clairement les soins offerts, l'approche et les modalités rassure les patients avant leur première visite à ${cityShort}.`,
+          `<strong>Accessibilité mobile :</strong> Les personnes cherchant un soin consultent souvent sur téléphone ; un affichage net facilite la prise de contact.`,
+          `<strong>Réponses aux questions courantes :</strong> Une FAQ claire réduit les questions répétitives à l'accueil.`
+        ];
+      } else if (p.sector === 'Commerce') {
+        points = [
+          `<strong>Mise en avant des produits & forfaits :</strong> Afficher vos offres et permettre de préparer une sélection encourage les réservations locales à ${cityShort}.`,
+          `<strong>Indépendance des réseaux :</strong> Un site web vous appartient et centralise vos horaires, coordonnées et demandes de commande.`,
+          `<strong>Parcours fluide :</strong> Le client choisit ce qu'il veut et envoie sa demande en quelques secondes.`
+        ];
+      } else {
+        points = [
+          `<strong>Crédibilité sur Google :</strong> À ${cityShort}, un site web clair renforce la confiance dès qu'un prospect entend parler de ${p.name}.`,
+          `<strong>Demandes de soumission structurées :</strong> Recevez des demandes plus précises avec les informations utiles dès le départ.`,
+          `<strong>Vitrine disponible 24/7 :</strong> Présentez vos services et votre valeur même en dehors des heures d'ouverture.`
+        ];
+      }
+
+      document.getElementById('pitch-points-box').innerHTML = points
+        .map(pt => `<p class="p-3 rounded-xl bg-slate-900/80 border border-slate-800/90">${pt}</p>`)
+        .join('');
+    }
+
+    function generateAllThreeSitesAndOpenStudio() {
+      saveProspectForm();
+      selectTab(2);
+      generateThreeInteractiveSites();
+    }
+
+    // =========================================================================
+    // ONGLET 2 : STUDIO 3 SITES INTERACTIFS & DEVIS CAD
+    // =========================================================================
+    function rebuildWebsitesForProject(proj) {
+      proj.websitesHTML = [
+        buildInteractiveWebsiteHTML(proj.prospect, 0),
+        buildInteractiveWebsiteHTML(proj.prospect, 1),
+        buildInteractiveWebsiteHTML(proj.prospect, 2)
+      ];
+    }
+
+    async function generateThreeInteractiveSites() {
+      const proj = getCurrentProject();
+      const btn = document.getElementById('btn-generate-sites');
+      const statusEl = document.getElementById('studio-engine-status');
+
+      btn.disabled = true;
+      btn.textContent = 'Génération en cours...';
+
+      // Toujours générer d'abord nos 3 sites interactifs certifiés fonctionnels
+      rebuildWebsitesForProject(proj);
+
+      // Si l'utilisateur a enregistré une clé Gemini optionnelle, tenter un enrichissement
+      const customKey = (appState.profile.geminiApiKey || '').trim();
+      if (customKey) {
+        try {
+          statusEl.textContent = 'Enrichissement via Gemini API...';
+          const prompt = `Génère un objet JSON avec 3 clés "c0", "c1", "c2" contenant chacune un titre d'accroche court et naturel (sans cliché IA) pour "${proj.prospect.name}" (${proj.prospect.sector}, ${proj.prospect.city}).`;
+          const resp = await fetch(
+            `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${encodeURIComponent(customKey)}`,
+            {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { responseMimeType: 'application/json' }
+              })
+            }
+          );
+          if (resp.ok) {
+            const json = await resp.json();
+            const txt = json?.candidates?.[0]?.content?.parts?.[0]?.text;
+            if (txt) {
+              const parsed = JSON.parse(txt);
+              [0, 1, 2].forEach(i => {
+                const headline = parsed['c' + i];
+                if (typeof headline === 'string' && headline.trim()) {
+                  const enriched = { ...proj.prospect, notes: headline.trim() };
+                  proj.websitesHTML[i] = buildInteractiveWebsiteHTML(enriched, i);
+                }
+              });
+              statusEl.textContent = '3 sites interactifs générés avec Gemini + contrôles interactifs vérifiés.';
+            }
+          } else {
+            throw new Error('HTTP_' + resp.status);
+          }
+        } catch (err) {
+          statusEl.textContent = '3 sites interactifs générés via le moteur local haute fiabilité (prêts au clic).';
+        }
+      } else {
+        statusEl.textContent = '3 sites interactifs générés localement : chaque bouton, onglet, FAQ et formulaire est fonctionnel.';
+      }
+
+      if (proj.status === 'À prospecter') {
+        proj.status = 'Maquettes prêtes';
+        document.getElementById('header-project-status').value = 'Maquettes prêtes';
+      }
+
+      persistState();
+      renderTab2();
+      btn.disabled = false;
+      btn.textContent = 'Régénérer les 3 sites web';
+      showToast('3 sites web interactifs prêts dans l’aperçu !', 'success');
+    }
+
+    function renderTab2() {
+      const proj = getCurrentProject();
+      if (!Array.isArray(proj.websitesHTML) || proj.websitesHTML.length !== 3) {
+        rebuildWebsitesForProject(proj);
+      }
+
+      document.getElementById('studio-client-label').textContent = proj.prospect.name || 'ce prospect';
+
+      // Rendu des 3 cartes de concepts
+      document.getElementById('three-concepts-grid').innerHTML = CONCEPTS.map(c => {
+        const isSelected = proj.selectedConceptIndex === c.index;
+        const isPreviewed = proj.previewConceptIndex === c.index;
+        return `
+          <div class="panel-glass rounded-2xl p-5 flex flex-col justify-between gap-4 border ${isSelected ? 'border-indigo-500' : 'border-slate-800'}">
+            <div>
+              <div class="flex items-center justify-between gap-2 mb-2">
+                <span class="text-[11px] font-extrabold px-2.5 py-0.5 rounded-lg bg-indigo-500/15 text-indigo-300">${escapeHTML(c.badge)}</span>
+                <span class="text-lg font-extrabold text-white">${c.price.toLocaleString('fr-CA')} $ <span class="text-xs font-normal text-slate-400">CAD</span></span>
+              </div>
+              <h3 class="text-base font-extrabold text-white">${escapeHTML(c.name)}</h3>
+              <p class="text-xs text-slate-400 mt-1 leading-relaxed">${escapeHTML(c.summary)}</p>
+            </div>
+            <div class="space-y-2 pt-3 border-t border-slate-800">
+              <button type="button" onclick="previewConcept(${c.index})" class="w-full py-2 px-3 rounded-xl text-xs font-bold border transition ${
+                isPreviewed
+                  ? 'bg-cyan-500/15 border-cyan-500/50 text-cyan-300'
+                  : 'bg-slate-850 hover:bg-slate-800 border-slate-700 text-slate-200'
+              }">
+                ${isPreviewed ? '✓ Affiché dans l’aperçu' : 'Afficher dans l’aperçu'}
+              </button>
+              <button type="button" onclick="chooseConceptForQuote(${c.index})" class="w-full py-2.5 px-3 rounded-xl text-xs font-extrabold transition ${
+                isSelected
+                  ? 'bg-emerald-600 text-white'
+                  : 'bg-indigo-600 hover:bg-indigo-500 text-white'
+              }">
+                ${isSelected ? '✓ Retenu pour le devis' : 'Choisir ce concept'}
+              </button>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      // Rendu des options du devis
+      document.getElementById('quote-options-list').innerHTML = QUOTE_OPTIONS.map(opt => {
+        const checked = !!(proj.options && proj.options[opt.id]);
+        return `
+          <label class="flex items-center justify-between gap-3 p-3 rounded-xl bg-slate-900 border ${checked ? 'border-indigo-500/60' : 'border-slate-800'} cursor-pointer select-none">
+            <span class="flex items-center gap-2.5 text-xs font-semibold text-slate-200">
+              <input type="checkbox" ${checked ? 'checked' : ''} onchange="toggleQuoteOption('${opt.id}')" class="w-4 h-4 rounded accent-indigo-500" />
+              <span>${escapeHTML(opt.label)}</span>
+            </span>
+            <span class="text-xs font-extrabold ${opt.monthly ? 'text-indigo-300' : 'text-emerald-400'} shrink-0">
+              +${opt.price} $${opt.monthly ? '/mois' : ''}
+            </span>
+          </label>
+        `;
+      }).join('');
+
+      updateQuoteBox();
+      previewConcept(proj.previewConceptIndex ?? 1);
+      setViewportMode(appState.viewportMode || 'desktop');
+    }
+
+    function previewConcept(idx) {
+      const proj = getCurrentProject();
+      const safeIdx = [0, 1, 2].includes(idx) ? idx : 1;
+      proj.previewConceptIndex = safeIdx;
+      const concept = CONCEPTS[safeIdx];
+      const htmlDoc = proj.websitesHTML[safeIdx] || buildInteractiveWebsiteHTML(proj.prospect, safeIdx);
+
+      document.getElementById('preview-bar-title').textContent =
+        `Aperçu interactif — Concept ${safeIdx + 1} : ${concept.name} (${concept.price.toLocaleString('fr-CA')} $ CAD)`;
+      document.getElementById('site-preview-iframe').srcdoc = htmlDoc;
+      persistState();
+    }
+
+    function chooseConceptForQuote(idx) {
+      const proj = getCurrentProject();
+      proj.selectedConceptIndex = idx;
+      proj.previewConceptIndex = idx;
+      proj.callScript = generateCallScriptText(proj);
+      const draft = generateEmailDraftText(proj);
+      proj.emailSubject = draft.subject;
+      proj.emailBody = draft.body;
+      proj.deliverySummary = generateDeliverySummaryText(proj);
+      persistState();
+      renderTab2();
+      showToast(`Concept ${idx + 1} (${CONCEPTS[idx].name}) retenu pour le devis.`, 'success');
+    }
+
+    function toggleQuoteOption(optId) {
+      const proj = getCurrentProject();
+      if (!proj.options) proj.options = {};
+      proj.options[optId] = !proj.options[optId];
+      proj.callScript = generateCallScriptText(proj);
+      const draft = generateEmailDraftText(proj);
+      proj.emailSubject = draft.subject;
+      proj.emailBody = draft.body;
+      proj.deliverySummary = generateDeliverySummaryText(proj);
+      persistState();
+      renderTab2();
+    }
+
+    function updateQuoteBox() {
+      const proj = getCurrentProject();
+      const q = computeQuote(proj);
+      const deposit = Math.round(q.totalOneTime / 2);
+
+      document.getElementById('quote-total-display').textContent = `${q.totalOneTime.toLocaleString('fr-CA')} $`;
+      document.getElementById('quote-monthly-display').textContent = `+ ${q.totalMonthly} $ / mois`;
+      document.getElementById('quote-summary-detail').textContent =
+        `Base ${q.baseConcept.name} (${q.baseConcept.price.toLocaleString('fr-CA')} $) • Acompte 50 % : ${deposit.toLocaleString('fr-CA')} $ CAD.`;
+    }
+
+    function setViewportMode(mode) {
+      appState.viewportMode = mode === 'mobile' ? 'mobile' : 'desktop';
+      const wrapper = document.getElementById('preview-frame-container');
+      const btnD = document.getElementById('btn-view-desktop');
+      const btnM = document.getElementById('btn-view-mobile');
+
+      if (appState.viewportMode === 'mobile') {
+        wrapper.style.maxWidth = '390px';
+        btnM.className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold';
+        btnD.className = 'px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold';
+      } else {
+        wrapper.style.maxWidth = '100%';
+        btnD.className = 'px-3 py-1.5 rounded-lg bg-indigo-600 text-white text-xs font-bold';
+        btnM.className = 'px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-xs font-bold';
+      }
+      persistState();
+    }
+
+    function openDemoModal() {
+      const proj = getCurrentProject();
+      const idx = proj.previewConceptIndex ?? 1;
+      const concept = CONCEPTS[idx];
+      const htmlDoc = proj.websitesHTML[idx] || buildInteractiveWebsiteHTML(proj.prospect, idx);
+
+      document.getElementById('demo-modal-title').textContent =
+        `${proj.prospect.name} — ${concept.name} (${concept.price.toLocaleString('fr-CA')} $ CAD)`;
+      document.getElementById('demo-modal-iframe').srcdoc = htmlDoc;
+      document.getElementById('demo-modal').classList.remove('hidden');
+    }
+
+    function closeDemoModal() {
+      document.getElementById('demo-modal').classList.add('hidden');
+    }
+
+    // =========================================================================
+    // ONGLET 3 : APPEL & COURRIEL GMAIL
+    // =========================================================================
+    function generateCallScriptText(proj) {
+      const p = proj.prospect;
+      const q = computeQuote(proj);
+      const studio = appState.profile.studioName || 'Atelier Web Autonome QC';
+      const cityShort = (p.city || 'votre ville').split(',')[0].trim();
+
+      return `Bonjour, est-ce que je pourrais parler à la personne responsable chez ${p.name} ?
+
+Bonjour ! Je m'appelle ${studio}, je travaille ici dans la région à ${cityShort}. Je vous appelle rapidement parce que j'ai vu votre fiche d'entreprise — vous avez une belle réputation locale, mais vous n'avez pas encore de site web fonctionnel pour recevoir des demandes en ligne.
+
+J'ai pris l'initiative de préparer une maquette interactive à l'image de ${p.name} avec vos services (${p.services || 'vos offres'}), des onglets et un formulaire de contact prêt à fonctionner.
+
+Est-ce que je peux vous envoyer le lien par courriel pour que vous y jetiez un œil quand vous avez 3 minutes ?
+
+--- Réponses rapides aux objections ---
+1. « On a déjà une page Facebook » :
+Facebook est pratique pour vos abonnés, mais quand un client cherche un service à ${cityShort} sur Google, un site clair avec vos coordonnées et demandes en ligne rassure et convertit mieux.
+
+2. « Quel est le budget ? » :
+Mes forfaits démarrent à 690 $ CAD, et la formule « ${q.baseConcept.name} » estimée pour votre projet est à ${q.totalOneTime.toLocaleString('fr-CA')} $ CAD (payable en deux versements : 50 % au départ, 50 % à la mise en ligne).
+
+3. « Je manque de temps » :
+Justement, la base interactive est déjà montée : je vous aide pour la mise en ligne et la publication sans vous compliquer la tâche.`;
+    }
+
+    function generateEmailDraftText(proj) {
+      const p = proj.prospect;
+      const q = computeQuote(proj);
+      const studio = appState.profile.studioName || 'Atelier Web Autonome QC';
+      const myPhone = appState.profile.phone || '';
+      const cityShort = (p.city || 'votre secteur').split(',')[0].trim();
+
+      return {
+        subject: `Aperçu de site web interactif préparé pour ${p.name}`,
+        body: `Bonjour,
+
+J'ai remarqué la fiche de ${p.name} à ${cityShort} et constaté que vous n'aviez pas encore de site web dédié pour présenter vos services et recevoir des demandes en ligne.
+
+J'ai préparé un aperçu interactif adapté à votre activité (${p.sector}) autour de la formule « ${q.baseConcept.name} » (${q.totalOneTime.toLocaleString('fr-CA')} $ CAD).
+
+Seriez-vous disponible pour un bref échange de 5 minutes cette semaine afin que je vous montre comment le site fonctionne et comment nous pouvons le publier ?
+
+Cordialement,
+
+${studio}
+${myPhone}`
+      };
+    }
+
+    function renderTab3() {
+      const proj = getCurrentProject();
+      const p = proj.prospect;
+      const q = computeQuote(proj);
+
+      document.getElementById('outreach-badge').textContent =
+        `Concept ${q.baseConcept.index + 1} • ${q.baseConcept.name} (${q.totalOneTime.toLocaleString('fr-CA')} $ CAD)`;
+      document.getElementById('outreach-company-title').textContent = p.name;
+      document.getElementById('outreach-company-coords').textContent =
+        `${p.city} • ${p.phone || 'Téléphone non indiqué'} • ${p.email || 'Courriel non indiqué'}`;
+
+      const cleanTel = (p.phone || '').replace(/[^0-9+]/g, '');
+      document.getElementById('outreach-tel-btn').href = cleanTel ? `tel:${cleanTel}` : '#';
+
+      if (!proj.callScript) proj.callScript = generateCallScriptText(proj);
+      if (!proj.emailSubject || !proj.emailBody) {
+        const d = generateEmailDraftText(proj);
+        proj.emailSubject = d.subject;
+        proj.emailBody = d.body;
+      }
+
+      document.getElementById('outreach-call-script').value = proj.callScript;
+      document.getElementById('outreach-email-subject').value = proj.emailSubject;
+      document.getElementById('outreach-email-body').value = proj.emailBody;
+    }
+
+    function rebuildOutreachScripts(notify = false) {
+      const proj = getCurrentProject();
+      proj.callScript = generateCallScriptText(proj);
+      const d = generateEmailDraftText(proj);
+      proj.emailSubject = d.subject;
+      proj.emailBody = d.body;
+      persistState();
+      renderTab3();
+      if (notify) showToast('Script d’appel et courriel régénérés.', 'success');
+    }
+
+    function setFollowUpEmailDraft() {
+      const proj = getCurrentProject();
+      const p = proj.prospect;
+      const studio = appState.profile.studioName || 'Atelier Web Autonome QC';
+      const myPhone = appState.profile.phone || '';
+
+      proj.emailSubject = `Suivi — Aperçu web pour ${p.name}`;
+      proj.emailBody = `Bonjour,
+
+Je me permets un court suivi au sujet de l'aperçu de site web préparé pour ${p.name}.
+
+Si vous avez quelques minutes cette semaine, je peux vous le montrer rapidement et répondre à vos questions sur la mise en ligne.
+
+Merci et bonne journée,
+
+${studio}
+${myPhone}`;
+
+      persistState();
+      renderTab3();
+      showToast('Brouillon de relance J+3 prêt.', 'success');
+    }
+
+    function saveOutreachEdits() {
+      const proj = getCurrentProject();
+      proj.callScript = document.getElementById('outreach-call-script').value;
+      proj.emailSubject = document.getElementById('outreach-email-subject').value;
+      proj.emailBody = document.getElementById('outreach-email-body').value;
+      persistState();
+    }
+
+    function launchGmailDraft() {
+      const proj = getCurrentProject();
+      const to = encodeURIComponent(proj.prospect.email || '');
+      const su = encodeURIComponent(document.getElementById('outreach-email-subject').value || '');
+      const body = encodeURIComponent(document.getElementById('outreach-email-body').value || '');
+      window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${su}&body=${body}`, '_blank', 'noopener,noreferrer');
+    }
+
+    function copyFullEmail() {
+      const su = document.getElementById('outreach-email-subject').value;
+      const body = document.getElementById('outreach-email-body').value;
+      copyTextToClipboard(`Objet : ${su}\n\n${body}`, 'Objet et message copiés !');
+    }
+
+    // =========================================================================
+    // ONGLET 4 : LIVRAISON, PUBLICATION & FACTURATION
+    // =========================================================================
+    function generateDeliverySummaryText(proj) {
+      const p = proj.prospect;
+      const q = computeQuote(proj);
+      const deposit = Math.round(q.totalOneTime / 2);
+      const balance = q.totalOneTime - deposit;
+      const studio = appState.profile.studioName || 'Atelier Web Autonome QC';
+      const myPhone = appState.profile.phone || '';
+      const myEmail = appState.profile.email || '';
+
+      const extras = q.activeAddons.length
+        ? q.activeAddons.map(a => `  - ${a.label} : +${a.price} $${a.monthly ? '/mois' : ' CAD'}`).join('\n')
+        : '  - Aucune option additionnelle cochée';
+
+      return `RÉCAPITULATIF DE PROJET & LIVRAISON — ${p.name.toUpperCase()}
+====================================================================
+Prestataire : ${studio} (${myPhone} • ${myEmail})
+Client : ${p.name} (${p.city})
+
+1. FORMULE RETENUE
+- Concept choisi : ${q.baseConcept.name} (${q.baseConcept.price.toLocaleString('fr-CA')} $ CAD)
+- Options :
+${extras}
+
+2. MONTANTS ESTIMÉS ($ CAD)
+- Total projet : ${q.totalOneTime.toLocaleString('fr-CA')} $ CAD
+- Acompte (50 %) : ${deposit.toLocaleString('fr-CA')} $ CAD
+- Solde à la publication (50 %) : ${balance.toLocaleString('fr-CA')} $ CAD
+${q.totalMonthly > 0 ? `- Récurrent mensuel : ${q.totalMonthly} $ CAD / mois\n` : ''}
+3. MESSAGE DE LIVRAISON AU CLIENT
+--------------------------------------------------------------------
+Bonjour,
+
+Le fichier de votre site web (${p.name}) est prêt pour la publication et la mise en ligne.
+Les interactions (navigation, onglets, FAQ et formulaire) ont été vérifiées sur ordinateur et mobile.
+
+N'hésitez pas si vous souhaitez ajuster un texte ou une information avant la mise en ligne finale.
+
+Cordialement,
+${studio}`;
+    }
+
+    function renderTab4() {
+      const proj = getCurrentProject();
+      const q = computeQuote(proj);
+
+      document.getElementById('delivery-concept-info').textContent =
+        `Concept retenu : ${q.baseConcept.name} (${q.baseConcept.price.toLocaleString('fr-CA')} $ CAD) pour ${proj.prospect.name}.`;
+
+      document.getElementById('delivery-checklist').innerHTML = DELIVERY_CHECKLIST_ITEMS.map(item => {
+        const isChecked = !!(proj.deliveryChecklist && proj.deliveryChecklist[item.id]);
+        return `
+          <label class="flex items-center gap-2.5 p-2.5 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer select-none">
+            <input type="checkbox" ${isChecked ? 'checked' : ''} onchange="toggleDeliveryChecklist('${item.id}')" class="w-4 h-4 rounded accent-emerald-500" />
+            <span class="text-xs font-medium ${isChecked ? 'line-through text-slate-500' : 'text-slate-200'}">${escapeHTML(item.label)}</span>
+          </label>
+        `;
+      }).join('');
+
+      if (!proj.deliverySummary) {
+        proj.deliverySummary = generateDeliverySummaryText(proj);
+      }
+      document.getElementById('delivery-summary-text').value = proj.deliverySummary;
+    }
+
+    function toggleDeliveryChecklist(id) {
+      const proj = getCurrentProject();
+      if (!proj.deliveryChecklist) proj.deliveryChecklist = {};
+      proj.deliveryChecklist[id] = !proj.deliveryChecklist[id];
+      persistState();
+      renderTab4();
+    }
+
+    function refreshDeliverySummary(notify = false) {
+      const proj = getCurrentProject();
+      proj.deliverySummary = generateDeliverySummaryText(proj);
+      document.getElementById('delivery-summary-text').value = proj.deliverySummary;
+      persistState();
+      if (notify) showToast('Récapitulatif de livraison actualisé.', 'success');
+    }
+
+    function saveDeliverySummaryEdit() {
+      const proj = getCurrentProject();
+      proj.deliverySummary = document.getElementById('delivery-summary-text').value;
+      persistState();
+    }
+
+    function downloadSelectedSiteHTML() {
+      const proj = getCurrentProject();
+      const idx = proj.selectedConceptIndex ?? 1;
+      const htmlContent = proj.websitesHTML[idx] || buildInteractiveWebsiteHTML(proj.prospect, idx);
+      const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'index.html';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      showToast('Fichier index.html téléchargé !', 'success');
+    }
+
+    function copySelectedSiteHTML() {
+      const proj = getCurrentProject();
+      const idx = proj.selectedConceptIndex ?? 1;
+      const htmlContent = proj.websitesHTML[idx] || buildInteractiveWebsiteHTML(proj.prospect, idx);
+      copyTextToClipboard(htmlContent, 'Code HTML du site retenu copié !');
+    }
+
+    function sendDeliveryEmailGmail() {
+      const proj = getCurrentProject();
+      const to = encodeURIComponent(proj.prospect.email || '');
+      const su = encodeURIComponent(`Livraison & mise en ligne — ${proj.prospect.name}`);
+      const body = encodeURIComponent(document.getElementById('delivery-summary-text').value || '');
+      window.open(`https://mail.google.com/mail/?view=cm&fs=1&to=${to}&su=${su}&body=${body}`, '_blank', 'noopener,noreferrer');
+    }
+
+    function markAsSignedAndDelivered() {
+      const proj = getCurrentProject();
+      proj.status = 'Signé & Livré';
+      document.getElementById('header-project-status').value = 'Signé & Livré';
+      persistState();
+      const q = computeQuote(proj);
+      showToast(`Projet marqué « Signé & Livré » (+${q.totalOneTime.toLocaleString('fr-CA')} $ CAD) !`, 'success');
+    }
+
+    // =========================================================================
+    // NAVIGATION D'ONGLETS, MODALE RÉGLAGES & UTILITAIRES
+    // =========================================================================
+    function selectTab(tabNum) {
+      appState.activeTab = [1, 2, 3, 4].includes(tabNum) ? tabNum : 1;
+
+      [1, 2, 3, 4].forEach(n => {
+        const view = document.getElementById(`view-tab-${n}`);
+        const navBtn = document.getElementById(`nav-tab-${n}`);
+        if (n === appState.activeTab) {
+          view.classList.remove('hidden');
+          navBtn.className = 'py-2.5 px-3 rounded-xl text-xs font-extrabold border bg-indigo-600/25 border-indigo-500 text-white transition text-center';
+        } else {
+          view.classList.add('hidden');
+          navBtn.className = 'py-2.5 px-3 rounded-xl text-xs font-bold border bg-slate-900 border-slate-800 text-slate-400 hover:text-slate-200 transition text-center';
+        }
+      });
+
+      if (appState.activeTab === 2) renderTab2();
+      if (appState.activeTab === 3) renderTab3();
+      if (appState.activeTab === 4) renderTab4();
+      persistState();
+    }
+
+    function openSettingsModal() {
+      document.getElementById('set-studio-name').value = appState.profile.studioName || '';
+      document.getElementById('set-studio-phone').value = appState.profile.phone || '';
+      document.getElementById('set-studio-email').value = appState.profile.email || '';
+      document.getElementById('set-monthly-goal').value = appState.profile.monthlyGoal || 3500;
+      document.getElementById('set-gemini-key').value = appState.profile.geminiApiKey || '';
+      document.getElementById('settings-modal').classList.remove('hidden');
+    }
+
+    function closeSettingsModal() {
+      document.getElementById('settings-modal').classList.add('hidden');
+    }
+
+    function saveSettingsModal() {
+      appState.profile.studioName = document.getElementById('set-studio-name').value.trim() || 'Atelier Web Autonome QC';
+      appState.profile.phone = document.getElementById('set-studio-phone').value.trim();
+      appState.profile.email = document.getElementById('set-studio-email').value.trim();
+      appState.profile.monthlyGoal = Math.max(500, Number(document.getElementById('set-monthly-goal').value) || 3500);
+      appState.profile.geminiApiKey = document.getElementById('set-gemini-key').value.trim();
+
+      const proj = getCurrentProject();
+      proj.callScript = generateCallScriptText(proj);
+      proj.deliverySummary = generateDeliverySummaryText(proj);
+
+      persistState();
+      closeSettingsModal();
+      showToast('Paramètres enregistrés.', 'success');
+    }
+
+    function toggleMobileSidebar() {
+      document.getElementById('sidebar').classList.toggle('-translate-x-full');
+      document.getElementById('sidebar-overlay').classList.toggle('hidden');
+    }
+
+    function closeMobileSidebarIfOpen() {
+      const sb = document.getElementById('sidebar');
+      if (!sb.classList.contains('-translate-x-full') && window.innerWidth < 1024) {
+        sb.classList.add('-translate-x-full');
+        document.getElementById('sidebar-overlay').classList.add('hidden');
+      }
+    }
+
+    function copyElementValue(elId, toastMsg) {
+      const el = document.getElementById(elId);
+      if (el) copyTextToClipboard(el.value, toastMsg);
+    }
+
+    function copyTextToClipboard(text, toastMsg) {
+      const ta = document.createElement('textarea');
+      ta.value = text;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        showToast(toastMsg, 'success');
+      } catch (err) {
+        showToast('Impossible de copier sur cet appareil.', 'warning');
+      }
+      document.body.removeChild(ta);
+    }
+
+    function showToast(msg, kind = 'info') {
+      const root = document.getElementById('toast-root');
+      const tone = {
+        success: 'bg-emerald-950 border-emerald-500/60 text-emerald-200',
+        warning: 'bg-amber-950 border-amber-500/60 text-amber-200',
+        info: 'bg-slate-900 border-indigo-500/60 text-slate-100'
+      };
+      const div = document.createElement('div');
+      div.className = `px-4 py-3 rounded-xl border shadow-xl text-xs font-bold transition-opacity duration-300 ${tone[kind] || tone.info}`;
+      div.textContent = msg;
+      root.appendChild(div);
+      setTimeout(() => {
+        div.style.opacity = '0';
+        setTimeout(() => div.remove(), 300);
+      }, 3200);
+    }
+
+    function escapeHTML(str) {
+      if (!str) return '';
+      return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;');
+    }
+
+    // Démarrage propre de l'application
+    window.addEventListener('DOMContentLoaded', () => {
+      loadState();
+      renderSidebar();
+      renderCurrentProject();
+    });
+  </script>
+</body>
+</html>
